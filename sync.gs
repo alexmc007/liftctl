@@ -101,7 +101,12 @@ function doGet(e) {
       .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (err) {
-    return json_({ ok: true, service: 'LiftCtl sync', rev: meta_().rev });
+    /* No Index file — answer as the sync service. Opening the /exec URL in a
+       browser should confirm the deployment works, so never throw here. */
+    var rev = -1;
+    try { rev = meta_().rev; } catch (e2) {}
+    return json_({ ok: rev >= 0, service: 'LiftCtl sync', rev: rev,
+                   note: rev >= 0 ? 'ready' : 'no spreadsheet bound to this script — open the Sheet and use Extensions > Apps Script' });
   }
 }
 

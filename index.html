@@ -1535,10 +1535,13 @@ function addLine(slug){
 }
 
 /* ---------- REST ---------- */
-var REST={rem:0,total:0,timer:null};
+/* The clock is read off Date.now() rather than counted down by the interval:
+   background tabs throttle timers, so a locked phone would otherwise come
+   back with a rest timer that thinks less time passed than really did. */
+var REST={rem:0,total:0,timer:null,endTs:0};
 function startRest(afterQ,skipped){
   var secs=afterQ.rest||90;
-  REST.rem=secs;REST.total=secs;
+  REST.rem=secs;REST.total=secs;REST.endTs=Date.now()+secs*1000;
   clearInterval(REST.timer);
   REST.timer=setInterval(restTick,1000);
   renderRest(afterQ,curQ(),skipped);
@@ -1579,12 +1582,14 @@ function renderRest(afterQ,next,skipped){
   $('restBody').innerHTML=h;
 }
 function restTick(){
-  REST.rem--;
-  var t=$('restT');if(t)t.textContent=fmtSec(REST.rem);
+  var rem=Math.max(0,Math.round((REST.endTs-Date.now())/1000));
+  if(rem===REST.rem&&rem>0)return;
+  REST.rem=rem;
+  var t=$('restT');if(t)t.textContent=fmtSec(rem);
   var arc=$('restArc');
-  if(arc){var frac=Math.max(0,REST.rem/REST.total);arc.setAttribute('stroke-dashoffset',String(552.9*(1-frac)));}
-  if(REST.rem===3||REST.rem===2||REST.rem===1)beep('tick');
-  if(REST.rem<=0)restNext();
+  if(arc){var frac=Math.max(0,rem/REST.total);arc.setAttribute('stroke-dashoffset',String(552.9*(1-frac)));}
+  if(rem===3||rem===2||rem===1)beep('tick');
+  if(rem<=0)restNext();
 }
 function restNext(){
   clearInterval(REST.timer);REST.timer=null;

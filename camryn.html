@@ -1762,9 +1762,13 @@ function renderSettings(){
     '<button class="btn" onclick="importOld()">Import cardio data</button></div>';
   h+='<div class="lbl">Data</div>'+
     '<button class="btn" onclick="exportData()">Export everything (JSON)</button>'+
+    '<div class="card" style="margin-top:10px">'+
+    '<div style="font-size:13px;color:var(--muted);margin-bottom:8px">Moving to a new link? Tap <b>Export everything</b> in your old app, then paste it here to bring your whole history over.</div>'+
+    '<textarea class="paste" id="importAllBox" placeholder="Paste your exported LiftCtl JSON"></textarea>'+
+    '<button class="btn" onclick="importAll()">Import everything</button></div>'+
     '<button class="btn ghost" onclick="resetAll()">Reset app…</button>';
   h+='<div class="foot-note">'+(USE_MOCK?'Preview mode — data stays in this browser.':'Synced to your Google Sheet (_State).')+
-       '<br><b style="color:var(--accent)">Build v9 · fresh link Aug 5</b> — if this doesn\'t match what you expect, force-close and reopen the app.</div>';
+       '<br><b style="color:var(--accent)">Build v10 · import + static host</b> — if this doesn\'t match what you expect, force-close and reopen the app.</div>';
   $('settingsBody').innerHTML=h;
 }
 function setSetting(k,v){var s=loadLC();s.settings[k]=parseInt(v,10)||s.settings[k];saveLC();toast('Saved');}
@@ -1778,6 +1782,15 @@ function importOld(){
     if(Array.isArray(c.hrLog))s.cardio.hrLog=c.hrLog.map(function(e){e.used=true;return e;});
     saveLC();toast('Imported ✓ — cardio levels and logs are in');
   }catch(e){toast('That JSON didn’t parse — copy it exactly',true);}
+}
+function importAll(){
+  var raw=$('importAllBox').value.trim();if(!raw){toast('Paste the JSON first',true);return;}
+  var s;try{s=JSON.parse(raw);}catch(e){toast('That JSON did not parse - copy it exactly',true);return;}
+  if(!s||typeof s!=='object'||!s._v){toast('That does not look like a LiftCtl export',true);return;}
+  uiConfirm('Replace everything on this device with the imported data?').then(function(ok){
+    if(!ok)return;
+    LC=migrate(s);saveLC();toast('Imported - your history is in');navTo('today');
+  });
 }
 function exportData(){
   var txt=JSON.stringify(loadLC());

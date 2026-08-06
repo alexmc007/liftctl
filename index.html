@@ -48,6 +48,13 @@ header#hd{
 }
 #hdBack.show{display:flex}
 #hdT{font-size:20px;font-weight:700;letter-spacing:-.3px;line-height:1.15}
+.dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px;background:var(--faint);transition:background .2s ease}
+.dot.off{background:rgba(255,255,255,.14)}
+.dot.ok{background:var(--good)}
+.dot.ok.pend{background:var(--warn)}
+.dot.busy{background:var(--accent);animation:pulse 1s ease-in-out infinite}
+.dot.err{background:var(--bad)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 #hdS{font-size:12px;color:var(--faint);margin-top:1px}
 main{padding:14px var(--pad) 116px;max-width:720px;margin:0 auto}
 .view{display:none;animation:fade .18s ease}
@@ -303,6 +310,69 @@ textarea{min-height:96px;font-size:13px;font-weight:400;line-height:1.5;resize:v
 .volband{position:absolute;top:0;bottom:0;background:rgba(255,255,255,.09)}
 .volfill{position:absolute;top:0;bottom:0;left:0;border-radius:5px}
 
+/* ---------- desktop: sidebar + multi-column, for reading rather than logging ---------- */
+.grid2,.grid4,.hm,.tbl{display:block}
+@media(min-width:900px){
+  header#hd{padding-left:calc(232px + 24px);padding-top:18px;padding-bottom:14px}
+  main{padding:22px 28px 40px calc(232px + 28px);max-width:1360px;margin:0}
+  nav{
+    top:0;bottom:0;right:auto;width:232px;
+    grid-template-columns:1fr;grid-auto-rows:max-content;align-content:start;gap:4px;
+    padding:calc(env(safe-area-inset-top) + 20px) 14px 20px;
+    border-top:0;border-right:1px solid var(--stroke);background:rgba(21,23,28,.7);
+  }
+  nav::before{
+    content:"LiftCtl";display:block;font-size:19px;font-weight:800;letter-spacing:-.4px;
+    color:var(--text);padding:0 10px 16px;
+  }
+  nav button{flex-direction:row;justify-content:flex-start;gap:11px;padding:11px 12px;font-size:14px;border-radius:12px}
+  nav button .ic{font-size:17px}
+  nav button:hover{background:rgba(255,255,255,.05);color:var(--dim)}
+  nav button.on:hover{color:var(--accent)}
+  .fab{right:28px;bottom:28px}
+  #toast{bottom:28px;left:calc(50% + 116px)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:start}
+  .span2{grid-column:span 2}
+  .card,.row{margin-bottom:14px}
+  .lbl{margin-top:24px}
+  main .view>div>.lbl:first-child{margin-top:0}
+  .next .n{font-size:30px}
+  .chart{padding:18px}
+  .seg{max-width:600px}
+  .ov{align-items:center}
+  .sheet{border-radius:20px;max-width:620px;max-height:82vh;margin:0 20px}
+  .desktop-only{display:block}
+  .phone-only{display:none}
+}
+@media(max-width:899px){
+  .desktop-only{display:none}
+}
+/* insight tables + heatmap */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{
+  text-align:left;font-size:10px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;
+  color:var(--faint);padding:0 10px 9px;white-space:nowrap;
+}
+.tbl td{padding:10px;border-top:1px solid var(--stroke);vertical-align:middle}
+.tbl tr:hover td{background:rgba(255,255,255,.025)}
+.tbl .r{text-align:right;font-variant-numeric:tabular-nums}
+.tbl .nm{font-weight:600}
+.tbl .sub{font-size:11.5px;color:var(--faint)}
+.wrapx{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.hm{display:grid;gap:3px;font-size:11px;min-width:520px}
+.hm .hl{color:var(--dim);font-size:12px;padding-right:8px;white-space:nowrap;display:flex;align-items:center}
+.hm .hc{height:26px;border-radius:5px;display:grid;place-items:center;font-size:10.5px;font-weight:700;color:rgba(255,255,255,.82);font-variant-numeric:tabular-nums}
+.hm .hh{font-size:9.5px;color:var(--faint);text-align:center;font-weight:700;letter-spacing:.4px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--faint);margin-top:10px;align-items:center}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.bars{display:flex;gap:5px;align-items:flex-end;height:66px;margin-top:10px}
+.bars div{flex:1;background:var(--accent);border-radius:4px 4px 2px 2px;min-height:2px;position:relative}
+.bars div.under{background:rgba(76,141,255,.38)}
+.bars div.over{background:var(--warn)}
+.barx{display:flex;gap:5px;margin-top:5px}
+.barx span{flex:1;text-align:center;font-size:9.5px;color:var(--faint)}
+
 /* overlays */
 #toast{
   position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 88px);transform:translate(-50%,14px);
@@ -327,6 +397,7 @@ textarea{min-height:96px;font-size:13px;font-weight:400;line-height:1.5;resize:v
 <header id="hd">
   <button id="hdBack" onclick="goBack()">‹</button>
   <div class="grow"><div id="hdT">LiftCtl</div><div id="hdS"></div></div>
+  <span id="syncDot" class="dot off" onclick="navTo('settings')"></span>
 </header>
 
 <main>
@@ -814,9 +885,22 @@ function loadLC(){
   LC=migrate(raw||defaultState());
   return LC;
 }
-function saveLC(){
+function saveLCRaw(){
   try{localStorage.setItem('lc_state',JSON.stringify(LC));}
   catch(e){toast('Could not save — storage is full',true);}
+}
+function saveLC(){
+  LC._upd=Date.now();   /* the merge uses this to settle which side wrote a scalar last */
+  saveLCRaw();
+  if(typeof syncSoon==='function')syncSoon();
+}
+/* Stamp the section being edited. Without this the whole state shares one
+   timestamp, so a session logged on the phone at 9:05 would out-rank a
+   program edit made on the desktop at 9:00 and quietly undo it. */
+function touch(section){
+  var s=loadLC();
+  s._t=s._t||{};
+  s._t[section]=Date.now();
 }
 
 /* ---------- in-progress run persistence ----------
@@ -1024,7 +1108,7 @@ function readinessEval(){
 function bandTitle(b){return {push:'Green light',normal:'Good to train',hold:'Hold steady',backOff:'Back off today'}[b];}
 function bandColor(b){return {push:'var(--good)',normal:'var(--accent)',hold:'var(--warn)',backOff:'var(--bad)'}[b];}
 function setReadiness(r){
-  var s=loadLC();s.schedule.readiness=r;s.schedule.readinessDate=todayStr();saveLC();
+  var s=loadLC();touch('schedule');s.schedule.readiness=r;s.schedule.readinessDate=todayStr();saveLC();
   haptic('solid');renderToday();
 }
 function askSleep(){
@@ -1033,7 +1117,7 @@ function askSleep(){
     if(v===null)return;
     var n=parseFloat(v);
     if(!(n>0&&n<15)){toast('Enter hours, for example 7.5',true);return;}
-    var s=loadLC();s.schedule.sleepHours=n;s.schedule.sleepDate=todayStr();saveLC();
+    var s=loadLC();touch('schedule');s.schedule.sleepHours=n;s.schedule.sleepDate=todayStr();saveLC();
     toast('Sleep logged');renderToday();
   });
 }
@@ -1152,13 +1236,14 @@ function renderToday(){
   var nrest=sessionRest(sess.id);
   if(nrest)flags.push('<span class="pill good">✓ done '+restWhen(nrest)+' · rest '+nrest.restLeft+' more day'+(nrest.restLeft===1?'':'s')+'</span>');
   if(new Date().getDay()===6)flags.push('<span class="pill good">🏀 basketball day — that is the 2nd leg stimulus</span>');
-  if(flags.length)h+='<div class="lbl">Flags</div><div class="pillrow">'+flags.join('')+'</div>';
+  var h2='';
+  if(flags.length)h2+='<div class="lbl">Flags</div><div class="pillrow">'+flags.join('')+'</div>';
 
   /* the session itself */
-  h+='<div class="lbl">'+esc(sess.name)+' — '+sessionUnits(sess).length+' slots</div>';
-  h+=sessionPreviewHtml(sess,sess.gym);
-  h+='<button class="btn" onclick="openStart(\''+sess.id+'\')">▶  Start session</button>';
-  $('todayBody').innerHTML=h;
+  h2+='<div class="lbl">'+esc(sess.name)+' — '+sessionUnits(sess).length+' slots</div>';
+  h2+=sessionPreviewHtml(sess,sess.gym);
+  h2+='<button class="btn" onclick="openStart(\''+sess.id+'\')">▶  Start session</button>';
+  $('todayBody').innerHTML='<div class="grid2"><div>'+h+'</div><div>'+h2+'</div></div>';
 }
 function sessionPreviewHtml(sess,gym){
   var h='';
@@ -1751,7 +1836,7 @@ function renderQuick(){
 /* ===== GOALS ===== */
 function openGoals(){renderGoals();showView('goals');}
 function setGoal(k,v){
-  var s=loadLC();
+  var s=loadLC();touch('goals');
   if(k==='phase')s.goals.phase=v;
   else{
     var n=parseFloat(v);
@@ -1789,19 +1874,23 @@ function renderGoals(){
       '<input type="number" step="1" inputmode="numeric" value="'+g.sessionsPerWeek+'" onchange="setGoal(\'sessionsPerWeek\',this.value)"></div>'+
     '</div>';
   h+='<div class="note">Body fat, weight and protein are yours to track — nothing here can read them off a scale or an app, so they sit here as targets you aim at rather than numbers the app pretends to know.</div>';
-  $('goalsBody').innerHTML=h;
+  $('goalsBody').innerHTML='<div style="max-width:640px">'+h+'</div>';
 }
 
 /* ===== STATS — strength · volume · history ===== */
-var statsTab='strength';
+var statsTab=(window.innerWidth>=900?'insights':'strength');
 function renderStats(tab){
   if(tab)statsTab=tab;
-  setHead('Stats',statsTab==='strength'?'Per-line e1RM · A solid, B dashed':(statsTab==='volume'?'Weekly effective sets':'Everything logged'));
+  setHead('Stats',{strength:'Per-line e1RM · A solid, B dashed',volume:'Planned weekly effective sets',
+    insights:'What you actually logged, week by week',history:'Everything logged'}[statsTab]);
   var h='<div class="seg">'+
+    '<button class="'+(statsTab==='insights'?'on':'')+'" onclick="renderStats(\'insights\')">Insights</button>'+
     '<button class="'+(statsTab==='strength'?'on':'')+'" onclick="renderStats(\'strength\')">Strength</button>'+
     '<button class="'+(statsTab==='volume'?'on':'')+'" onclick="renderStats(\'volume\')">Volume</button>'+
     '<button class="'+(statsTab==='history'?'on':'')+'" onclick="renderStats(\'history\')">History</button></div>';
-  h+=statsTab==='strength'?strengthHtml():(statsTab==='volume'?volumeHtml():historyHtml());
+  h+=statsTab==='insights'?insightsHtml():
+     (statsTab==='strength'?'<div class="grid2">'+strengthHtml()+'</div>':
+     (statsTab==='volume'?'<div style="max-width:760px">'+volumeHtml()+'</div>':'<div class="grid2">'+historyHtml()+'</div>'));
   $('statsBody').innerHTML=h;
   if(currentView!=='stats')showView('stats',true);
 }
@@ -1932,6 +2021,145 @@ function dayDetail(date){
   openSheet(h);
 }
 
+/* ===== INSIGHTS — what actually happened, from the logs.
+   The Volume tab shows what the PROGRAM plans per week; this shows what
+   you really did, week by week, which is the number worth arguing with. ===== */
+function weekStart(dateStr){
+  var d=new Date(dateStr+'T12:00:00');
+  d.setDate(d.getDate()-((d.getDay()+6)%7));   /* back to Monday */
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function lastNWeeks(n){
+  var out=[],d=new Date();
+  d.setDate(d.getDate()-((d.getDay()+6)%7));
+  for(var i=n-1;i>=0;i--){
+    var x=new Date(d.getTime());x.setDate(x.getDate()-i*7);
+    out.push(x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'));
+  }
+  return out;
+}
+function actualWeekly(n){
+  var s=loadLC(),weeks=lastNWeeks(n),idx={};
+  weeks.forEach(function(w,i){idx[w]=i;});
+  var byMuscle={},tagSets={},sessions={},dayseen={};
+  Object.keys(MUSCLES).forEach(function(m){byMuscle[m]=weeks.map(function(){return 0;});});
+  weeks.forEach(function(w){tagSets[w]={press:0,pull:0};sessions[w]=0;});
+  Object.keys(s.lines).forEach(function(k){
+    var d=EXDEFS[k.split('__')[2]];if(!d)return;
+    (s.lines[k].history||[]).forEach(function(e){
+      var w=weekStart(e.date);if(idx[w]==null)return;
+      var n2=(e.setsLogged||[]).length;
+      if(byMuscle[d.mus])byMuscle[d.mus][idx[w]]+=n2;
+      if(d.tag)tagSets[w][d.tag]+=n2;
+    });
+  });
+  (s.settings.coeffs||[]).forEach(function(c){
+    weeks.forEach(function(w,i){
+      var src=tagSets[w][c.tag]||0;
+      if(src&&byMuscle[c.to])byMuscle[c.to][i]+=src*c.mult;
+    });
+  });
+  (s.quickLogs||[]).forEach(function(q){
+    var w=weekStart(q.date);if(idx[w]==null||!byMuscle[q.muscle])return;
+    byMuscle[q.muscle][idx[w]]+=(+q.sets||0);
+  });
+  (s.schedule.completions||[]).forEach(function(c){
+    var w=weekStart(c.date);if(idx[w]==null)return;
+    if(dayseen[c.date])return;dayseen[c.date]=1;sessions[w]++;
+  });
+  return {weeks:weeks,byMuscle:byMuscle,sessions:sessions};
+}
+function heatColor(v,lo,hi){
+  if(!v)return 'rgba(255,255,255,.045)';
+  if(v<lo)return 'rgba(76,141,255,'+(0.18+0.42*(v/Math.max(lo,1))).toFixed(2)+')';
+  if(v<=hi)return 'rgba(54,211,153,'+(0.32+0.5*((v-lo)/Math.max(hi-lo,1))).toFixed(2)+')';
+  return 'rgba(246,185,59,.72)';
+}
+function insightsHtml(){
+  var s=loadLC(),W=12,a=actualWeekly(W),lo=s.settings.targetLow,hi=s.settings.targetHigh;
+  var muscles=Object.keys(MUSCLES).filter(function(m){return a.byMuscle[m].some(function(x){return x>0;});});
+  var h='';
+  if(!muscles.length&&!(s.schedule.completions||[]).length)
+    return '<div class="card">Nothing logged yet — these build from your session history.</div>';
+
+  /* --- weekly effective sets per muscle --- */
+  h+='<div class="lbl">Hard sets per muscle · last '+W+' weeks (what you actually logged)</div>';
+  h+='<div class="card"><div class="wrapx"><div class="hm" style="grid-template-columns:96px repeat('+W+',1fr)">';
+  h+='<div></div>'+a.weeks.map(function(w){return '<div class="hh">'+prettyDate(w).replace(' ','&nbsp;')+'</div>';}).join('');
+  muscles.forEach(function(m){
+    h+='<div class="hl">'+esc(MUSCLES[m].label)+'</div>';
+    a.byMuscle[m].forEach(function(v){
+      var r=Math.round(v*10)/10;
+      h+='<div class="hc" style="background:'+heatColor(v,lo,hi)+'">'+(r?r:'')+'</div>';
+    });
+  });
+  h+='</div></div><div class="legend">'+
+    '<span><i style="background:rgba(255,255,255,.045)"></i>nothing</span>'+
+    '<span><i style="background:rgba(76,141,255,.5)"></i>under '+lo+'</span>'+
+    '<span><i style="background:rgba(54,211,153,.65)"></i>in the '+lo+'–'+hi+' band</span>'+
+    '<span><i style="background:rgba(246,185,59,.72)"></i>over '+hi+'</span>'+
+    '<span>includes indirect work and quick logs</span></div></div>';
+
+  /* --- consistency --- */
+  var tgt=Math.max(1,s.goals.sessionsPerWeek||5),mx=Math.max(tgt,Math.max.apply(null,a.weeks.map(function(w){return a.sessions[w];})));
+  h+='<div class="lbl">Sessions per week · target '+tgt+'</div><div class="card"><div class="bars">';
+  a.weeks.forEach(function(w){
+    var v=a.sessions[w];
+    h+='<div class="'+(v<tgt?'under':(v>tgt?'over':''))+'" style="height:'+Math.max(2,Math.round(v/mx*66))+'px" title="'+w+': '+v+'"></div>';
+  });
+  h+='</div><div class="barx">'+a.weeks.map(function(w,i){return '<span>'+(i%2===0?prettyDate(w).split(' ')[1]:'')+'</span>';}).join('')+'</div>';
+  var total=0;a.weeks.forEach(function(w){total+=a.sessions[w];});
+  h+='<div class="note" style="margin-top:12px">'+total+' sessions in '+W+' weeks — '+(total/W).toFixed(1)+' a week against a target of '+tgt+'.</div></div>';
+
+  /* --- every line, one table --- */
+  var rows=[];
+  Object.keys(s.lines).forEach(function(k){
+    var hist=s.lines[k].history||[];if(!hist.length)return;
+    var parts=k.split('__'),d=EXDEFS[parts[2]];if(!d)return;
+    var last=hist[hist.length-1];
+    var sixWk=null;
+    hist.forEach(function(e){if(daysAgo(e.date)<=42&&sixWk==null)sixWk=e.v||e.e1rm;});
+    var delta=(sixWk!=null&&hist.length>1)?(last.e1rm-sixWk):0;
+    rows.push({name:d.name,gym:(GYMS[parts[0]]||{}).name||parts[0],sess:sessionById(parts[1]),
+      n:hist.length,e1rm:last.e1rm,delta:delta,date:last.date,rec:last.rec,cfg:d,
+      best:(last.setsLogged||[]).map(function(x){return x.load+'×'+x.reps;}).join(' · ')});
+  });
+  rows.sort(function(x,y){return y.date<x.date?-1:(y.date>x.date?1:0);});
+  h+='<div class="lbl">Every line you have logged</div><div class="card"><div class="wrapx"><table class="tbl">'+
+    '<tr><th>Exercise</th><th>Where</th><th class="r">est 1RM</th><th class="r">6-wk</th><th class="r">Sessions</th><th>Last</th><th>Next move</th></tr>';
+  rows.forEach(function(r){
+    var dc=r.delta>0?'var(--good)':(r.delta<0?'var(--bad)':'var(--faint)');
+    h+='<tr><td><div class="nm">'+esc(r.name)+'</div><div class="sub">'+esc(r.sess?r.sess.name:'')+'</div></td>'+
+      '<td class="sub">'+esc(r.gym)+'</td>'+
+      '<td class="r"><b>'+Math.round(r.e1rm)+'</b></td>'+
+      '<td class="r" style="color:'+dc+'">'+(r.delta?(r.delta>0?'+':'')+Math.round(r.delta):'—')+'</td>'+
+      '<td class="r">'+r.n+'</td>'+
+      '<td><div>'+prettyDate(r.date)+'</div><div class="sub">'+esc(r.best)+'</div></td>'+
+      '<td class="sub">'+esc(r.rec?shortRec(r.rec,r.cfg):'—')+'</td></tr>';
+  });
+  h+='</table></div></div>';
+
+  /* --- failure-set records --- */
+  var prs=[];
+  Object.keys(s.lines).forEach(function(k){
+    var bm=s.lines[k].benchmark||[];if(!bm.length)return;
+    var d=EXDEFS[k.split('__')[2]];if(!d)return;
+    var best=bm.slice().sort(function(x,y){return (y.e1rm||0)-(x.e1rm||0);})[0];
+    prs.push({name:d.name,load:best.load,reps:best.amrapReps,e1rm:best.e1rm,date:best.date});
+  });
+  prs.sort(function(x,y){return (y.e1rm||0)-(x.e1rm||0);});
+  if(prs.length){
+    h+='<div class="lbl">Failure-set records</div><div class="card"><div class="wrapx"><table class="tbl">'+
+      '<tr><th>Exercise</th><th class="r">Best AMRAP</th><th class="r">est 1RM</th><th>When</th></tr>';
+    prs.forEach(function(p){
+      h+='<tr><td class="nm">'+esc(p.name)+'</td><td class="r">'+p.load+' × '+p.reps+'</td>'+
+        '<td class="r"><b>'+Math.round(p.e1rm)+'</b></td><td class="sub">'+prettyDate(p.date)+'</td></tr>';
+    });
+    h+='</table></div></div>';
+  }
+  return h;
+}
+
 /* ===== PLAN — next week moves + the program itself ===== */
 var planTab='moves';
 function renderPlan(tab){
@@ -1998,6 +2226,7 @@ function shortRec(rec,cfg){
   return 'hold';
 }
 function applyVolumeMoves(){
+  touch('program');
   var s=loadLC(),by=weekOutcomesByMuscle(),v=effectiveVolume(),changed=[];
   var lo=s.settings.targetLow,hi=s.settings.targetHigh;
   Object.keys(MUSCLES).forEach(function(m){
@@ -2072,6 +2301,7 @@ function edSets(slotIdx,pos,val){
   var sess=sessionById(ED_SESS);if(!sess)return;
   var slot=sess.slots[+slotIdx];if(!slot)return;
   var v=Math.max(1,Math.min(6,parseInt(val,10)||1));
+  touch('program');
   if(pos==='ex')slot.sets=v;else if(pos==='a')slot.setsA=v;else slot.setsB=v;
   saveLC();toast('Saved — '+v+' sets');
 }
@@ -2079,7 +2309,7 @@ function edEx(slug,field,val){
   var d=EXDEFS[slug];if(!d)return;
   var v=parseInt(val,10)||d[field];
   d[field]=v;
-  var s=loadLC();
+  var s=loadLC();touch('settings');touch('program');
   s.settings.exOverrides=s.settings.exOverrides||{};
   s.settings.exOverrides[slug]=s.settings.exOverrides[slug]||{};
   s.settings.exOverrides[slug][field]=v;
@@ -2094,7 +2324,7 @@ function applyExOverrides(){
 }
 
 /* ===== SETTINGS ===== */
-var BUILD='Build v11';
+var BUILD='Build v12 · sync + desktop';
 function renderSettings(){
   var s=loadLC();
   setHead('Settings','LiftCtl');
@@ -2112,6 +2342,23 @@ function renderSettings(){
       '<input type="number" step="0.1" min="0" max="1" value="'+c.mult+'" onchange="setCoeff('+i+',this.value)"></div>';
   });
   h+='</div>';
+  h+='<div class="lbl">Sync</div>';
+  if(syncOn()){
+    h+='<div class="card tint-g"><div style="display:flex;align-items:center;gap:9px">'+
+      '<span class="pill good">✓ on</span><div class="grow" style="font-size:13px;color:var(--dim)">'+
+      (SYNC.lastAt?('Last sync '+new Date(SYNC.lastAt).toLocaleString()):'Not synced yet')+
+      ' · rev '+SYNC.rev+' · this device is <b style="color:var(--text)">'+esc(SYNC.device)+'</b></div></div>'+
+      (SYNC.lastErr?'<div style="font-size:12.5px;color:var(--bad);margin-top:8px">'+esc(SYNC.lastErr)+'</div>':'')+
+      '<div class="btnrow"><button class="btn sm" style="flex:2" onclick="syncNow(\'manual\')">↻ Sync now</button>'+
+      '<button class="btn sm ghost" style="flex:1" onclick="disconnectSync()">Disconnect</button></div></div>';
+  }else{
+    h+='<div class="card"><div style="font-size:13px;color:var(--dim);margin-bottom:9px">'+
+      'Paste the Apps Script <b style="color:var(--text)">/exec</b> URL to sync this device with your Sheet. '+
+      'Do it on the phone and on the desktop and they follow each other.</div>'+
+      '<input type="text" id="syncUrl" placeholder="https://script.google.com/macros/s/.../exec" style="font-size:13px;font-weight:400">'+
+      '<button class="btn sm" style="margin-top:9px" onclick="connectSync()">Connect</button>'+
+      '<div style="font-size:12px;color:var(--faint);margin-top:9px">Setup steps are in <b style="color:var(--dim)">sync.gs</b> in the repo. The in-progress workout is deliberately not synced — it stays on the phone that is logging it.</div></div>';
+  }
   h+='<div class="lbl">Data</div>'+
     '<button class="btn ghost" onclick="exportData()">📋 Export everything (JSON)</button>'+
     '<button class="btn ghost" onclick="downloadData()">⬇️ Download backup file</button>'+
@@ -2129,10 +2376,10 @@ function renderSettings(){
     '<div style="font-size:12.5px;color:var(--faint);margin-top:8px">Old app kept as a fallback at <b style="color:var(--dim)">/legacy/</b> — export your history from there if anything is missing.</div>'+
     '</div>';
   h+='<div class="note">No Apple Health, no Watch, no HealthKit. A web page cannot read any of it, so this app only ever knows what you type in and what you log here.</div>';
-  $('settingsBody').innerHTML=h;
+  $('settingsBody').innerHTML='<div style="max-width:640px">'+h+'</div>';
 }
-function setSetting(k,v){var s=loadLC();s.settings[k]=parseInt(v,10)||s.settings[k];saveLC();toast('Saved');}
-function setCoeff(i,v){var s=loadLC();s.settings.coeffs[i].mult=Math.max(0,Math.min(1,parseFloat(v)||0));saveLC();toast('Saved');}
+function setSetting(k,v){var s=loadLC();touch('settings');s.settings[k]=parseInt(v,10)||s.settings[k];saveLC();toast('Saved');}
+function setCoeff(i,v){var s=loadLC();touch('settings');s.settings.coeffs[i].mult=Math.max(0,Math.min(1,parseFloat(v)||0));saveLC();toast('Saved');}
 function exportData(){
   var txt=JSON.stringify(loadLC());
   try{
@@ -2445,6 +2692,200 @@ function hiitFeedback(rating){
   openCardio();showView('cardio',true);
 }
 
+/* ===== SYNC — Apps Script endpoint over plain HTTP.
+   The endpoint URL lives in its own localStorage key, NOT in lc_state,
+   so an export stays portable and never carries the endpoint with it.
+   Posts go out as text/plain so the browser sends no CORS preflight. ===== */
+var SYNC={url:'',rev:0,device:'',lastAt:0,lastErr:'',busy:false,dirty:false};
+var _syncT=null;
+function loadSync(){
+  try{
+    var s=JSON.parse(localStorage.getItem('lc_sync')||'null');
+    if(s){SYNC.url=s.url||'';SYNC.rev=s.rev||0;SYNC.device=s.device||'';SYNC.lastAt=s.lastAt||0;}
+  }catch(e){}
+  if(!SYNC.device){
+    SYNC.device=(/iPhone|iPad|iPod/.test(navigator.userAgent)?'iPhone':(/Android/.test(navigator.userAgent)?'Android':'Desktop'))+'-'+Math.random().toString(36).slice(2,6);
+    saveSyncCfg();
+  }
+  return SYNC;
+}
+function saveSyncCfg(){
+  try{localStorage.setItem('lc_sync',JSON.stringify({url:SYNC.url,rev:SYNC.rev,device:SYNC.device,lastAt:SYNC.lastAt}));}catch(e){}
+}
+function syncOn(){return !!SYNC.url;}
+function syncDot(){
+  var el=$('syncDot');if(!el)return;
+  if(!syncOn()){el.className='dot off';el.title='Sync off';return;}
+  if(SYNC.busy){el.className='dot busy';el.title='Syncing…';return;}
+  if(SYNC.lastErr){el.className='dot err';el.title=SYNC.lastErr;return;}
+  el.className='dot ok'+(SYNC.dirty?' pend':'');
+  el.title=SYNC.dirty?'Waiting to sync':('Synced '+(SYNC.lastAt?new Date(SYNC.lastAt).toLocaleTimeString():''));
+}
+function syncPost(body){
+  return fetch(SYNC.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(body),redirect:'follow'}).then(function(r){return r.json();});
+}
+function syncGet(){
+  return fetch(SYNC.url+(SYNC.url.indexOf('?')<0?'?':'&')+'action=get&t='+Date.now(),{redirect:'follow'})
+    .then(function(r){return r.json();});
+}
+
+/* ---- merge: append-only data is unioned, scalars follow the newer _upd,
+        so a stale tab can never delete what the other device logged ---- */
+function _byDate(a,b){return a.date<b.date?-1:(a.date>b.date?1:0);}
+function _lastDate(h){return (h&&h.length)?h[h.length-1].date:'';}
+function _union(a,b,keyf,cap,sortIt){
+  var seen={},out=[];
+  (a||[]).concat(b||[]).forEach(function(x){
+    if(!x)return;
+    var k=keyf(x);
+    if(seen[k])return;
+    seen[k]=1;out.push(x);
+  });
+  if(sortIt!==false)out.sort(_byDate);
+  return cap?out.slice(-cap):out;
+}
+function mergeStates(local,remote){
+  if(!remote||typeof remote!=='object')return local;
+  if(!local||typeof local!=='object')return remote;
+  var lu=+local._upd||0,ru=+remote._upd||0;
+  var newer=lu>=ru?local:remote, older=lu>=ru?remote:local;
+  var out=JSON.parse(JSON.stringify(newer));
+
+  /* Sections you edit deliberately are settled by their OWN timestamp, so
+     logging on one device never rolls back an edit made on the other. */
+  var lt=local._t||{},rt=remote._t||{};
+  out._t={};
+  ['goals','settings','program','schedule'].forEach(function(sec){
+    var a=+lt[sec]||lu,b=+rt[sec]||ru;
+    out._t[sec]=Math.max(a,b);
+    var win=b>a?remote:local;
+    if(sec==='schedule'){
+      /* only the typed-today scalars — the logs below merge on their own terms */
+      var w=win.schedule||{};
+      out.schedule=out.schedule||{};
+      out.schedule.readiness=w.readiness;out.schedule.readinessDate=w.readinessDate;
+      out.schedule.sleepHours=w.sleepHours;out.schedule.sleepDate=w.sleepDate;
+    }else if(win[sec]){
+      out[sec]=JSON.parse(JSON.stringify(win[sec]));
+    }
+  });
+
+  /* per-line history + failure benchmarks */
+  out.lines=out.lines||{};
+  Object.keys(older.lines||{}).forEach(function(k){
+    var o=older.lines[k],n=out.lines[k];
+    if(!n){out.lines[k]=o;return;}
+    n.history=_union(n.history,o.history,function(e){
+      return e.date+'|'+(e.setsLogged||[]).map(function(s){return s.load+'x'+s.reps;}).join(',');
+    },30);
+    n.benchmark=_union(n.benchmark,o.benchmark,function(e){return e.date+'|'+e.load+'|'+e.amrapReps;},50);
+    /* the machine snapshot belongs to whichever side logged this line last */
+    if(_lastDate(o.history)>_lastDate(n.history)&&o.machine)n.machine=o.machine;
+  });
+
+  var os=older.schedule||{},ns=out.schedule=out.schedule||{};
+  ns.completions=_union(ns.completions,os.completions,function(c){return c.date+'|'+c.sessionId;},60);
+  ns.muscleLast=ns.muscleLast||{};
+  Object.keys(os.muscleLast||{}).forEach(function(m){
+    if(!ns.muscleLast[m]||os.muscleLast[m]>ns.muscleLast[m])ns.muscleLast[m]=os.muscleLast[m];
+  });
+  if(os.lastLiftDate&&(!ns.lastLiftDate||os.lastLiftDate>ns.lastLiftDate)){
+    ns.lastLiftDate=os.lastLiftDate;
+    ns.lastCompletedSessionId=os.lastCompletedSessionId;   /* rotation follows the most recent session */
+  }
+  out.quickLogs=_union(out.quickLogs,older.quickLogs,function(q){return q.id;},300);
+
+  out.volume=out.volume||{lastAdd:{}};
+  var ov=(older.volume||{}).lastAdd||{};
+  out.volume.lastAdd=out.volume.lastAdd||{};
+  Object.keys(ov).forEach(function(m){
+    if(!out.volume.lastAdd[m]||ov[m]>out.volume.lastAdd[m])out.volume.lastAdd[m]=ov[m];
+  });
+
+  var oc=older.cardio||{},nc=out.cardio=out.cardio||{};
+  nc.hiit=nc.hiit||{};
+  Object.keys(oc.hiit||{}).forEach(function(m){
+    var o=oc.hiit[m],n=nc.hiit[m];
+    if(!n){nc.hiit[m]=o;return;}
+    var oLast=_lastDate(o.history),nLast=_lastDate(n.history);
+    n.history=_union(n.history,o.history,function(e){return e.date+'|'+e.feedback+'|'+e.level;},40);
+    /* the level is a running number — take it from whichever side trained last */
+    if(oLast>nLast){n.level=o.level;n.easyStreak=o.easyStreak;}
+  });
+  nc.vo2Log=_union(nc.vo2Log,oc.vo2Log,function(x){return x.date;},120);
+  nc.hrLog=_union(nc.hrLog,oc.hrLog,function(x){return x.date+'|'+x.machine+'|'+x.avgHR;},60);
+
+  out._upd=Math.max(lu,ru);
+  return out;
+}
+
+function syncNow(reason){
+  if(!syncOn()||SYNC.busy)return Promise.resolve(false);
+  SYNC.busy=true;SYNC.lastErr='';syncDot();
+  var changed=false;
+  return syncGet().then(function(res){
+    if(!res||!res.ok)throw new Error((res&&res.error)||'endpoint did not answer');
+    var remote=null;
+    if(res.state){try{remote=JSON.parse(res.state);}catch(e){remote=null;}}
+    var before=JSON.stringify(loadLC());
+    if(remote&&remote._v){
+      LC=migrate(mergeStates(loadLC(),remote));
+      var after=JSON.stringify(LC);
+      if(after!==before){
+        try{localStorage.setItem('lc_state',after);}catch(e){}
+        applyExOverrides();changed=true;
+      }
+    }
+    /* push if we hold anything the sheet does not */
+    var mine=JSON.stringify(LC);
+    if(mine===res.state&&!SYNC.dirty){SYNC.rev=res.rev;return {ok:true,rev:res.rev,skipped:true};}
+    return syncPost({kind:'state',baseRev:res.rev,state:mine,device:SYNC.device});
+  }).then(function(p){
+    if(p&&p.conflict){
+      /* someone wrote between our read and our write — merge theirs in and retry once */
+      var theirs=null;try{theirs=JSON.parse(p.state);}catch(e){}
+      if(theirs&&theirs._v){LC=migrate(mergeStates(loadLC(),theirs));saveLCRaw();changed=true;}
+      return syncPost({kind:'state',baseRev:p.rev,state:JSON.stringify(LC),device:SYNC.device});
+    }
+    return p;
+  }).then(function(p){
+    if(!p||(!p.ok&&!p.skipped))throw new Error((p&&p.error)||'save refused');
+    SYNC.rev=p.rev||SYNC.rev;SYNC.lastAt=Date.now();SYNC.dirty=false;SYNC.lastErr='';
+    saveSyncCfg();SYNC.busy=false;syncDot();
+    if(changed&&ROOTS[currentView]&&currentView!=='runner')navTo(currentView);
+    if(reason==='manual')toast(changed?'Synced — pulled in changes':'Synced ✓');
+    return true;
+  }).catch(function(e){
+    SYNC.busy=false;SYNC.lastErr=String(e.message||e);syncDot();
+    if(reason==='manual')toast('Sync failed: '+SYNC.lastErr,true);
+    return false;
+  });
+}
+function syncSoon(){
+  if(!syncOn())return;
+  SYNC.dirty=true;syncDot();
+  clearTimeout(_syncT);
+  _syncT=setTimeout(function(){syncNow('auto');},2500);
+}
+function connectSync(){
+  var url=($('syncUrl').value||'').trim();
+  var ok=/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)||/^https?:\/\/localhost(:\d+)?\/exec$/.test(url); /* localhost = local test harness */
+  if(!ok){toast('That should be the Apps Script /exec URL',true);return;}
+  SYNC.url=url;SYNC.rev=0;saveSyncCfg();
+  toast('Connecting…');
+  syncNow('manual').then(function(ok){
+    if(!ok){SYNC.url='';saveSyncCfg();}
+    renderSettings();
+  });
+}
+function disconnectSync(){
+  uiConfirm('Stop syncing this device? Your data stays here and stays in the sheet.','Disconnect').then(function(ok){
+    if(!ok)return;
+    SYNC.url='';SYNC.rev=0;saveSyncCfg();syncDot();renderSettings();toast('Sync off');
+  });
+}
+
 /* ===== BOOT ===== */
 (function boot(){
   loadLC();
@@ -2461,5 +2902,13 @@ function hiitFeedback(rating){
     renderToday();
     showView('today',true);
   }
+  loadSync();syncDot();
+  if(syncOn())syncNow('boot');
 })();
+
+/* pull whatever the other device logged whenever this one comes back to the front */
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible'&&syncOn()&&!RUN)syncNow('focus');
+});
+window.addEventListener('online',function(){if(syncOn())syncNow('online');});
 </script>

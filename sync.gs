@@ -23,9 +23,15 @@
 var CHUNK = 40000;
 var MAX_CHUNKS = 20;
 
+/* Standalone scripts have no active spreadsheet, so put the target sheet id
+   here (the long string in its /spreadsheets/d/<ID>/edit URL). Leave it empty
+   if this script is bound to the sheet via Extensions > Apps Script. */
+var SHEET_ID = '';
+
 /* ---------- storage ---------- */
 
 function getSS_() {
+  if (SHEET_ID) return SpreadsheetApp.openById(SHEET_ID);
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   if (ss) return ss;
   var id = PropertiesService.getScriptProperties().getProperty('SSID');

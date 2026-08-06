@@ -2857,7 +2857,16 @@ function syncNow(reason){
     if(reason==='manual')toast(changed?'Synced — pulled in changes':'Synced ✓');
     return true;
   }).catch(function(e){
-    SYNC.busy=false;SYNC.lastErr=String(e.message||e);syncDot();
+    var msg=String(e.message||e);
+    /* A browser reports a blocked cross-origin request as a bare "Failed to
+       fetch", which is unactionable. It is nearly always the deployment
+       access setting, so say that instead. */
+    if(/failed to fetch|networkerror|load failed/i.test(msg)){
+      msg=navigator.onLine
+        ? 'Could not reach the endpoint. In Apps Script check Deploy → Manage deployments → Who has access = Anyone, and that the URL ends in /exec.'
+        : 'Offline — will sync when you are back.';
+    }
+    SYNC.busy=false;SYNC.lastErr=msg;syncDot();
     if(reason==='manual')toast('Sync failed: '+SYNC.lastErr,true);
     return false;
   });

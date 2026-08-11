@@ -76,7 +76,9 @@ nav button{
 nav button .ic{font-size:18px;line-height:1}
 nav button.on{color:var(--accent);background:var(--accentSoft)}
 body.chrome-off nav,body.chrome-off header#hd{display:none}
-body.chrome-off main{padding:0}
+/* the session screen owns the whole glass — the 720px reading cap would otherwise
+   letterbox the big timer with black bars on a landscape phone */
+body.chrome-off main{padding:0;max-width:none}
 
 /* ---------- building blocks ---------- */
 .card{
@@ -267,14 +269,30 @@ textarea{min-height:96px;font-size:13px;font-weight:400;line-height:1.5;resize:v
 .cmach .h{font-size:17px;font-weight:700;letter-spacing:-.3px}
 .cmach .s{font-size:12.5px;color:var(--dim);margin-top:3px}
 .cmach .m{font-size:12.5px;color:var(--text);margin-top:8px;background:var(--bgEl);border-radius:10px;padding:9px 11px}
-#v-cardiorun{text-align:center}
-.crun{min-height:100svh;display:flex;flex-direction:column;justify-content:center;gap:12px;padding:18px}
+#v-cardiorun{text-align:center;transition:background-color .35s ease}
+/* the persistent phase wash — answers "what am I doing" from across the room,
+   without reading a word. flash() still blinks on top for "something changed". */
+body[data-phase="work"] #v-cardiorun{background:var(--badSoft)}
+body[data-phase="set"] #v-cardiorun{background:var(--warnSoft)}
+body[data-phase="rest"] #v-cardiorun,
+body[data-phase="warm"] #v-cardiorun,
+body[data-phase="cool"] #v-cardiorun{background:var(--goodSoft)}
+.crun{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;gap:12px;
+  padding:calc(30px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+/* session clock + round pinned to the corner so the big block clock owns the middle */
+.csess{position:absolute;top:calc(9px + env(safe-area-inset-top));right:max(15px,env(safe-area-inset-right));
+  display:flex;gap:7px;font-size:15px;font-weight:700;color:var(--dim);font-variant-numeric:tabular-nums;z-index:2}
+.csess .sep{opacity:.45}
+.ctrack{position:absolute;top:0;left:0;right:0;height:4px;background:rgba(255,255,255,.10);z-index:2}
+.cfill{height:100%;width:0;background:var(--accent);transition:width .4s linear}
+body[data-phase="work"] .cfill{background:var(--bad)}
+body[data-phase="set"] .cfill{background:var(--warn)}
+body[data-phase="rest"] .cfill,body[data-phase="warm"] .cfill,body[data-phase="cool"] .cfill{background:var(--good)}
 .cphase{font-size:26px;font-weight:900;letter-spacing:3px;color:var(--accent)}
 .cphase.go{color:var(--bad)}
 .cphase.set{color:var(--warn)}
 .cphase.rest{color:var(--good)}
-.ccount{font-size:104px;font-weight:800;letter-spacing:-4px;line-height:.95;font-variant-numeric:tabular-nums}
-.cround{font-size:14px;color:var(--dim)}
+.ccount{font-size:min(26vh,120px);font-weight:800;letter-spacing:-4px;line-height:.95;font-variant-numeric:tabular-nums}
 .ctarget{background:var(--card);border:1px solid var(--stroke);border-radius:var(--r);padding:14px}
 .ctarget.setphase{background:var(--warnSoft);border-color:var(--warn)}
 .tg-lbl{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--faint)}
@@ -289,14 +307,38 @@ textarea{min-height:96px;font-size:13px;font-weight:400;line-height:1.5;resize:v
 .cbtns button{flex:1;padding:15px 0;border-radius:var(--r);border:1px solid var(--stroke);background:var(--card);color:var(--text);font-size:15px;font-weight:700}
 #flash{position:fixed;inset:0;z-index:90;pointer-events:none;opacity:0;background:var(--warn);transition:opacity .18s ease}
 #flash.on{opacity:.85}
-@media(orientation:landscape) and (max-height:520px){
-  .crun{flex-direction:row;align-items:center;gap:22px;padding:10px 16px}
-  .crun .left{flex:1;display:flex;flex-direction:column;gap:2px}
-  .crun .right{width:44%;max-width:340px;display:flex;flex-direction:column;gap:10px}
-  .ccount{font-size:140px}
-  .cphase{font-size:22px}
-}
 .crun .left,.crun .right{display:flex;flex-direction:column;gap:10px}
+/* cardio setup rows + the desktop session table */
+.crow{display:flex;gap:9px;align-items:center;font-size:13.5px;padding:7px 0}
+.crow+.crow{border-top:1px solid var(--stroke)}
+.mini{border:1px solid var(--stroke);background:var(--bgEl);color:var(--dim);border-radius:9px;
+  padding:6px 10px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mini:active{transform:scale(.96)}
+.ctab-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.ctab{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ctab th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;
+  color:var(--faint);padding:0 10px 7px 0}
+.ctab td{padding:7px 10px 7px 0;border-top:1px solid var(--stroke);color:var(--dim)}
+.ctab td:first-child,.ctab td:nth-child(4){color:var(--text);font-weight:600}
+/* ---- treadmill deck: the phone lies sideways an arm's length away and the
+   runner is bouncing, so everything scales off viewport height and the speed
+   target is second in size only to the clock ---- */
+@media(orientation:landscape) and (max-height:600px){
+  .crun{flex-direction:row;align-items:center;gap:min(4vw,26px);
+    padding:calc(12px + env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left))}
+  .crun .left{flex:1;min-width:0;gap:0;justify-content:center}
+  .crun .right{width:40%;max-width:360px;gap:min(1.6vh,10px)}
+  .ccount{font-size:min(46vh,300px);letter-spacing:-.05em}
+  .cphase{font-size:min(4.6vh,30px);letter-spacing:2px}
+  .csess{font-size:min(3.4vh,20px);top:calc(7px + env(safe-area-inset-top))}
+  .ctarget{padding:min(2vh,14px) 12px}
+  .tg-lbl{font-size:min(1.9vh,13px)}
+  .tg-val{font-size:min(9vh,64px);letter-spacing:-.03em;margin-top:1px}
+  .cnext{font-size:min(2vh,14px)}
+  .cadj button{width:min(9vh,58px);height:min(7.4vh,48px);font-size:min(3.6vh,24px);border-radius:12px}
+  .cadj .adjl{font-size:min(1.8vh,12px)}
+  .cbtns button{padding:min(1.7vh,12px) 0;font-size:min(2.2vh,15px)}
+}
 
 /* charts */
 .chart{background:var(--card);border:1px solid var(--stroke);border-radius:var(--r);padding:14px var(--pad);margin-bottom:10px}
@@ -414,10 +456,15 @@ textarea{min-height:96px;font-size:13px;font-weight:400;line-height:1.5;resize:v
   <section id="v-cardio"   class="view"><div id="cardioBody"></div></section>
   <section id="v-cardiorun" class="view">
     <div class="crun">
+      <div class="csess">
+        <span id="hSess">0:00 left</span>
+        <span class="sep">·</span>
+        <span id="hRound">Round 1/5</span>
+      </div>
+      <div class="ctrack"><div class="cfill" id="hFill"></div></div>
       <div class="left">
         <div class="cphase" id="hPhase">GET READY</div>
         <div class="ccount" id="hCount">15</div>
-        <div class="cround" id="hRound"></div>
       </div>
       <div class="right">
         <div class="ctarget" id="hTarget"></div>
@@ -726,7 +773,8 @@ var Engine=(function(){
   /* HR guardrail: redline ≥93% → -0.5, cruising ≤78% → +0.5, wide dead zone between */
   function cardioHrDelta(avgHR,maxHR){
     if(!(avgHR>=60&&avgHR<=215))return {eff:null,delta:0,valid:false};
-    var hrMax=Math.max(maxHR||0,190),eff=avgHR/hrMax,delta=0;
+    /* trust a real measured max when there is one; 190 is only the fallback */
+    var hrMax=(maxHR>=120&&maxHR<=230)?maxHR:190,eff=avgHR/hrMax,delta=0;
     if(eff>=0.93)delta=-0.5;else if(eff<=0.78)delta=0.5;
     return {eff:eff,delta:delta,valid:true};
   }
@@ -833,6 +881,9 @@ var COEFFS_DEFAULT=[
    quickLogs, lastGym) are filled in by migrate(). ===== */
 var CARRYOVER={"hiit":{"treadmill":{"level":16,"history":[{"date":"2026-06-25","feedback":"right","level":15.5,"params":{"speed":"6.7","incline":"3.0","easySpeed":"3.5","workSec":120,"restSec":83,"rounds":5}},{"date":"2026-07-05","feedback":"right","level":16,"params":{"speed":"6.7","incline":"3.0","easySpeed":"3.5","workSec":121,"restSec":83,"rounds":5}}]},"bike":{"level":15,"history":[]},"row":{"level":15,"history":[]}},"vo2Log":[],"hrLog":[],"autoHealthSave":true};
 var LC=null;
+/* warm-up and cool-down live in state, not in cardioParams, so they stay
+   editable without touching the ENGINE block */
+var WARM_DEF=300,COOL_DEF=180,MAXHR_DEF=190;
 
 function defaultState(){
   return {
@@ -841,8 +892,10 @@ function defaultState(){
     lines:{},
     schedule:{lastCompletedSessionId:null,lastLiftDate:null,readiness:null,readinessDate:null,completions:[],muscleLast:{}},
     volume:{lastAdd:{}},
-    cardio:{hiit:{treadmill:{level:15,history:[]},bike:{level:15,history:[]},row:{level:15,history:[]}},
-            vo2Log:[],hrLog:[],autoHealthSave:true},
+    cardio:{hiit:{treadmill:{level:15,history:[],warmSec:WARM_DEF,coolSec:COOL_DEF},
+                  bike:{level:15,history:[],warmSec:WARM_DEF,coolSec:COOL_DEF},
+                  row:{level:15,history:[],warmSec:WARM_DEF,coolSec:COOL_DEF}},
+            vo2Log:[],hrLog:[],maxHR:MAXHR_DEF,autoHealthSave:true},
     settings:{coeffs:JSON.parse(JSON.stringify(COEFFS_DEFAULT)),cadenceTarget:5,targetLow:10,targetHigh:20},
     goals:{phase:'maintain',targetBodyFat:null,targetWeight:null,proteinTargetG:null,sleepTargetHours:7.5,sessionsPerWeek:5},
     quickLogs:[],
@@ -858,6 +911,7 @@ function migrate(s){
   });
   if(!Array.isArray(s.cardio.vo2Log))s.cardio.vo2Log=[];
   if(!Array.isArray(s.cardio.hrLog))s.cardio.hrLog=[];
+  if(!(s.cardio.maxHR>=120&&s.cardio.maxHR<=230))s.cardio.maxHR=MAXHR_DEF;
   if(!Array.isArray(s.schedule.completions))s.schedule.completions=[];
   if(!s.schedule.muscleLast)s.schedule.muscleLast={};
   if(!s.volume.lastAdd)s.volume.lastAdd={};
@@ -875,6 +929,13 @@ function migrate(s){
       s._carried=true;
     }catch(e){}
   }
+  /* warm-up / cool-down default in last, because the carryover above replaces
+     whole hiit[m] objects with build-time blobs that predate these fields */
+  ['treadmill','bike','row'].forEach(function(m){
+    var h=s.cardio.hiit[m];
+    if(!(h.warmSec>=0&&h.warmSec<=1800))h.warmSec=WARM_DEF;
+    if(!(h.coolSec>=0&&h.coolSec<=1800))h.coolSec=COOL_DEF;
+  });
   s._v=1;
   return s;
 }
@@ -2324,7 +2385,7 @@ function applyExOverrides(){
 }
 
 /* ===== SETTINGS ===== */
-var BUILD='Build v12 · sync + desktop';
+var BUILD='Build v13 · treadmill cardio';
 function renderSettings(){
   var s=loadLC();
   setHead('Settings','LiftCtl');
@@ -2429,13 +2490,52 @@ function resetAll(){
 /* ===== CARDIO — the VO2 trainer. Formulas live in Engine.cardio*;
    this block is only the session UI. ===== */
 var MACHINES=Engine.CARDIO_MACHINES;
-var hiit={machine:null,round:0,phase:'',setTo:'',rem:0,timer:null,params:null,paused:false,ac:null,sessionStart:null,adj:0,wake:null,_doneDur:0};
+var hiit={machine:null,plan:null,idx:0,round:0,phase:'',setTo:'',rem:0,endAt:0,pausedMs:0,lastBeep:-1,
+          timer:null,params:null,paused:false,ac:null,sessionStart:null,adj:0,wake:null,_doneDur:0};
+var PHASE_LABEL={prep:{t:'GET READY',c:''},warm:{t:'WARM UP',c:'rest'},work:{t:'GO HARD',c:'go'},
+                 set:{t:'CHANGE SPEED NOW',c:'set'},rest:{t:'RECOVER',c:'rest'},cool:{t:'COOL DOWN',c:'rest'}};
 function cardioState(){return loadLC().cardio;}
+/* generic m:ss — used for rowing pace, block clocks and the session clock alike */
 function paceTxt(s){var m=Math.floor(s/60),x=s%60;return m+':'+(x<10?'0':'')+x;}
-function targetText(m,p,phase){
+/* The whole session is laid out up front. The corner clock, the progress bar and
+   "up next" are then reads off this array instead of re-derivations, and skip /
+   pause / catch-up-after-backgrounding all collapse into index math. */
+function hiitBuildPlan(p,warmSec,coolSec){
+  var plan=[],r;
+  if(warmSec>0){
+    plan.push({phase:'warm',dur:warmSec,round:0});
+    plan.push({phase:'set',dur:p.transSec,setTo:'work',round:1});
+  }else{
+    plan.push({phase:'prep',dur:15,round:0});
+  }
+  for(r=1;r<=p.rounds;r++){
+    plan.push({phase:'work',dur:p.workSec,round:r});
+    if(r<p.rounds){
+      plan.push({phase:'set',dur:p.transSec,setTo:'rest',round:r});
+      plan.push({phase:'rest',dur:p.restSec,round:r});
+      plan.push({phase:'set',dur:p.transSec,setTo:'work',round:r+1});
+    }
+  }
+  if(coolSec>0){
+    plan.push({phase:'set',dur:p.transSec,setTo:'cool',round:p.rounds});
+    plan.push({phase:'cool',dur:coolSec,round:p.rounds});
+  }
+  return plan;
+}
+function planTotal(plan){return (plan||[]).reduce(function(a,b){return a+b.dur;},0);}
+/* seconds left in the whole session: what is left of this block plus every block after it */
+function hiitRemainTotal(){
+  if(!hiit.plan)return 0;
+  var t=hiit.rem,i;
+  for(i=hiit.idx+1;i<hiit.plan.length;i++)t+=hiit.plan[i].dur;
+  return Math.max(0,t);
+}
+/* holding = already in the block rather than dialling in for the next one, so the
+   label reads "hold this" mid-stride instead of telling you to set what you set */
+function targetText(m,p,phase,holding){
   if(m==='treadmill'){
-    if(phase==='work')return '<div class="tg-lbl">Set treadmill</div><div class="tg-val">'+p.speed+' mph · '+p.incline+'%</div>';
-    return '<div class="tg-lbl">Recovery walk</div><div class="tg-val">'+p.easySpeed+' mph · '+p.incline+'%</div>';
+    if(phase==='work')return '<div class="tg-lbl">'+(holding?'Hold this':'Set treadmill')+'</div><div class="tg-val">'+p.speed+' mph · '+p.incline+'%</div>';
+    return '<div class="tg-lbl">'+(holding?'Easy walk':'Recovery walk')+'</div><div class="tg-val">'+p.easySpeed+' mph · '+p.incline+'%</div>';
   }
   if(m==='bike'){
     if(phase==='work')return '<div class="tg-lbl">Hold RPM</div><div class="tg-val">~'+p.rpm+' RPM</div>';
@@ -2449,23 +2549,25 @@ function shortTxt(m,p,phase){
   if(m==='bike')return phase==='work'?('~'+p.rpm+' RPM'):('~'+p.easyRpm+' RPM');
   return phase==='work'?(paceTxt(p.paceSec)+'/500m'):(paceTxt(p.easyPaceSec)+'/500m');
 }
-function nextText(m,p,phase,round){
-  if(phase==='prep')return '<span class="nx-lbl">Up next</span> Work · <b>'+shortTxt(m,p,'work')+'</b> for '+p.workSec+'s';
-  if(phase==='work'){
-    if(round>=p.rounds)return '<span class="nx-lbl">After this</span> 🏁 last work block — feedback after';
-    return '<span class="nx-lbl">Up next</span> ⚙️ '+p.transSec+'s change window → recover at <b>'+shortTxt(m,p,'rest')+'</b>';
+function nextText(m,p,idx){
+  var n=(hiit.plan||[])[idx+1];
+  if(!n)return '<span class="nx-lbl">After this</span> 🏁 done — rate it and the level moves';
+  if(n.phase==='work')return '<span class="nx-lbl">Up next</span> 🔥 go hard '+paceTxt(n.dur)+' at <b>'+shortTxt(m,p,'work')+'</b>';
+  if(n.phase==='rest')return '<span class="nx-lbl">Up next</span> Recover '+paceTxt(n.dur)+' at <b>'+shortTxt(m,p,'rest')+'</b>';
+  if(n.phase==='cool')return '<span class="nx-lbl">Up next</span> 🧊 cool down '+paceTxt(n.dur)+' at <b>'+shortTxt(m,p,'rest')+'</b>';
+  if(n.phase==='set'){
+    var after=(hiit.plan||[])[idx+2],tgt=(after&&after.phase==='work')?'work':'rest';
+    return '<span class="nx-lbl">Up next</span> ⚙️ '+n.dur+'s change window → <b>'+shortTxt(m,p,tgt)+'</b>';
   }
-  if(phase==='set'){
-    if(hiit.setTo==='rest')return '<span class="nx-lbl">Then</span> Recover '+p.restSec+'s at <b>'+shortTxt(m,p,'rest')+'</b>';
-    return '<span class="nx-lbl">Then</span> 🔥 go hard '+p.workSec+'s at <b>'+shortTxt(m,p,'work')+'</b>';
-  }
-  return '<span class="nx-lbl">Up next</span> ⚙️ '+p.transSec+'s change window → back up to <b>'+shortTxt(m,p,'work')+'</b>';
+  return '';
 }
-function cardioSummary(m,p){
-  var head='<b>'+p.rounds+' rounds</b> · '+p.workSec+'s hard / '+p.restSec+'s easy';
-  if(m==='treadmill')return head+'<br>Work: '+p.speed+' mph @ '+p.incline+'% · Rest: '+p.easySpeed+' mph';
-  if(m==='bike')return head+'<br>Work: ~'+p.rpm+' RPM · Rest: ~'+p.easyRpm+' RPM';
-  return head+'<br>Work: '+paceTxt(p.paceSec)+'/500m · Rest: '+paceTxt(p.easyPaceSec)+'/500m';
+function cardioSummary(m,p,st){
+  var tot=planTotal(hiitBuildPlan(p,(st||{}).warmSec||0,(st||{}).coolSec||0));
+  var head='<b>'+p.rounds+' rounds</b> · '+p.workSec+'s hard / '+p.restSec+'s easy · '+Math.round(tot/60)+' min door to door';
+  var tail='<br><span style="color:var(--faint)">'+paceTxt((st||{}).warmSec||0)+' warm-up · '+paceTxt((st||{}).coolSec||0)+' cool-down</span>';
+  if(m==='treadmill')return head+'<br>Work: '+p.speed+' mph @ '+p.incline+'% · Rest: '+p.easySpeed+' mph'+tail;
+  if(m==='bike')return head+'<br>Work: ~'+p.rpm+' RPM · Rest: ~'+p.easyRpm+' RPM'+tail;
+  return head+'<br>Work: '+paceTxt(p.paceSec)+'/500m · Rest: '+paceTxt(p.easyPaceSec)+'/500m'+tail;
 }
 function openCardio(){
   setHead('🔥 Cardio','VO₂ intervals that ramp with you');
@@ -2475,7 +2577,7 @@ function openCardio(){
     var last=(st.history&&st.history.length)?('Last: '+(st.history[st.history.length-1].feedback||'—')+' · level '+(+st.level).toFixed(1)):'New — starts gentle';
     var lhr=lastHrFor(k);if(lhr&&lhr.avgHR)last+=' · ❤️ '+lhr.avgHR+' bpm';
     h+='<button class="cmach" onclick="hiitStart(\''+k+'\')"><div class="h">'+m.icon+' '+esc(m.name)+'</div>'+
-       '<div class="s">'+esc(m.blurb)+'</div><div class="m">'+cardioSummary(k,p)+'</div>'+
+       '<div class="s">'+esc(m.blurb)+'</div><div class="m">'+cardioSummary(k,p,st)+'</div>'+
        '<div class="s" style="margin-top:7px">'+esc(last)+'</div></button>';
   });
   h+=cardioInsightsHtml();
@@ -2520,7 +2622,71 @@ function cardioInsightsHtml(){
        '<span style="font-size:12px;color:var(--dim)">ml/kg/min · '+prettyDate(latest.date)+'</span></div>'+delta+spark(log.map(function(x){return x.value;}),'var(--accent)'))
       :'<div style="font-size:13px;color:var(--dim);margin-top:6px">No readings yet. If a watch or a lab gave you a number, type it in and watch it move.</div>')+
      '<button class="btn ghost sm" style="margin-top:11px" onclick="vo2Add()">＋ Log a VO₂ reading</button></div>';
+  h+=cardioSetupHtml();
+  h+=cardioHistoryHtml();
   h+='<div class="note">Levels move from how you rate each session and from the ± you tap mid-workout. Nothing is read off a watch — the average heart rate is optional and typed in by you after a session.</div>';
+  return h;
+}
+/* warm-up, cool-down and max HR live here rather than in cardioParams, so the
+   level engine stays untouched and these stay editable */
+function cardioSetupHtml(){
+  var c=cardioState();
+  var h='<div class="lbl">Session shape</div><div class="card">';
+  Object.keys(MACHINES).forEach(function(k){
+    var st=c.hiit[k];
+    h+='<div class="crow"><span>'+MACHINES[k].icon+'</span><span class="grow">'+esc(MACHINES[k].name)+'</span>'+
+       '<button class="mini" onclick="cardioSetTime(\''+k+'\',\'warmSec\')">warm '+paceTxt(st.warmSec)+'</button>'+
+       '<button class="mini" onclick="cardioSetTime(\''+k+'\',\'coolSec\')">cool '+paceTxt(st.coolSec)+'</button></div>';
+  });
+  h+='<div class="crow"><span>❤️</span><span class="grow">Max heart rate</span>'+
+     '<button class="mini" onclick="cardioSetMaxHr()">'+(c.maxHR||MAXHR_DEF)+' bpm</button></div>';
+  h+='<div class="note" style="margin:9px 0 0">Max HR is where the redline sits. An average at or above 93 percent of it eases the next session off; at or below 78 percent it pushes up.</div></div>';
+  return h;
+}
+function cardioSetTime(k,field){
+  var c=cardioState(),cur=c.hiit[k][field],lbl=field==='warmSec'?'warm-up':'cool-down';
+  uiPrompt('Minutes of '+lbl+' on the '+MACHINES[k].name.toLowerCase()+'. Zero turns it off.',String(Math.round(cur/60)),field==='warmSec'?'Warm-up':'Cool-down').then(function(v){
+    if(v===null)return;
+    var n=parseFloat(v);
+    if(!(n>=0&&n<=30)){toast('Enter minutes between 0 and 30',true);return;}
+    c.hiit[k][field]=Math.round(n*60);saveLC();openCardio();
+  });
+}
+function cardioSetMaxHr(){
+  var c=cardioState();
+  uiPrompt('Your max heart rate in bpm. Leave it at 190 if you have never measured one.',String(c.maxHR||MAXHR_DEF),'Max HR').then(function(v){
+    if(v===null)return;
+    var n=parseInt(v,10);
+    if(!(n>=120&&n<=230)){toast('Enter a bpm between 120 and 230',true);return;}
+    c.maxHR=n;saveLC();openCardio();toast('Max HR set to '+n);
+  });
+}
+/* the desktop half of the app: what actually happened, session by session */
+function cardioHistoryHtml(){
+  var c=cardioState(),rows=[];
+  Object.keys(MACHINES).forEach(function(k){
+    ((c.hiit[k]||{}).history||[]).forEach(function(e){
+      var hr=(c.hrLog||[]).filter(function(x){
+        return x.date===e.date&&String(x.machine||'').toLowerCase()===MACHINES[k].name.toLowerCase();
+      })[0];
+      rows.push({date:e.date,mk:k,level:e.level,fb:e.feedback,dur:e.durSec||0,
+                 hr:hr?hr.avgHR:null,pct:hr?hr.pct:null,params:e.params||{}});
+    });
+  });
+  if(!rows.length)return '';
+  rows.sort(function(a,b){return a.date<b.date?1:-1;});
+  var FB={easy:'😤 easy',right:'👌 right',hard:'🥵 hard'};
+  var h='<div class="lbl">Session history</div><div class="card"><div class="ctab-wrap"><table class="ctab">'+
+    '<thead><tr><th>Date</th><th></th><th>Work</th><th>Level</th><th>Felt</th><th>Time</th><th>Avg HR</th></tr></thead><tbody>';
+  rows.slice(0,24).forEach(function(r){
+    var w=r.mk==='treadmill'?((r.params.speed||'—')+' mph'):
+          (r.mk==='bike'?((r.params.rpm||'—')+' RPM'):(r.params.paceSec?(paceTxt(r.params.paceSec)+'/500'):'—'));
+    h+='<tr><td>'+prettyDate(r.date)+'</td><td>'+MACHINES[r.mk].icon+'</td><td>'+esc(w)+'</td>'+
+       '<td>'+(+r.level).toFixed(1)+'</td><td>'+(FB[r.fb]||'—')+'</td>'+
+       '<td>'+(r.dur?paceTxt(r.dur):'—')+'</td>'+
+       '<td>'+(r.hr?(r.hr+(r.pct?(' · '+r.pct+'%'):'')):'—')+'</td></tr>';
+  });
+  h+='</tbody></table></div></div>';
   return h;
 }
 function vo2Add(){
@@ -2579,24 +2745,44 @@ function hiitAdjust(dir){
 }
 function hiitRender(){
   var p=Engine.cardioEff(hiit.machine,hiit.params,hiit.adj),phase=hiit.phase;
-  var phEl=$('hPhase'),cEl=$('hCount'),rEl=$('hRound'),tEl=$('hTarget'),nEl=$('hNext'),aEl=$('hAdjust');
-  if(phase==='prep'){phEl.textContent='GET READY';phEl.className='cphase';}
-  else if(phase==='work'){phEl.textContent='GO HARD';phEl.className='cphase go';}
-  else if(phase==='set'){phEl.textContent='CHANGE SPEED NOW';phEl.className='cphase set';}
-  else if(phase==='rest'){phEl.textContent='RECOVER';phEl.className='cphase rest';}
-  cEl.textContent=hiit.rem;
-  rEl.textContent='Round '+Math.max(1,hiit.round)+' of '+p.rounds;
-  var tgtPhase=phase==='rest'?'rest':(phase==='set'?hiit.setTo:'work');
-  tEl.innerHTML=(phase==='set'?'<div class="tg-lbl" style="color:var(--warn)">DIAL IT '+(hiit.setTo==='work'?'UP':'DOWN')+' — clock is running</div>':'')+targetText(hiit.machine,p,tgtPhase);
+  var phEl=$('hPhase'),cEl=$('hCount'),rEl=$('hRound'),sEl=$('hSess'),fEl=$('hFill'),
+      tEl=$('hTarget'),nEl=$('hNext'),aEl=$('hAdjust');
+  var lab=PHASE_LABEL[phase]||{t:'',c:''};
+  phEl.textContent=lab.t;phEl.className='cphase'+(lab.c?' '+lab.c:'');
+  /* a 5:00 warm-up as "300" is unreadable; anything under a minute reads better bare */
+  cEl.textContent=hiit.rem>=60?paceTxt(hiit.rem):hiit.rem;
+  if(rEl)rEl.textContent=phase==='warm'?'Warm-up':(phase==='cool'?'Cool-down':('Round '+Math.max(1,hiit.round)+'/'+p.rounds));
+  if(sEl)sEl.textContent=paceTxt(hiitRemainTotal())+' left';
+  if(fEl){
+    var tot=planTotal(hiit.plan)||1;
+    fEl.style.width=Math.min(100,Math.max(0,(tot-hiitRemainTotal())/tot*100)).toFixed(1)+'%';
+  }
+  document.body.dataset.phase=(phase==='prep'?'warm':phase);
+  var tgtPhase=(phase==='work')?'work':(phase==='set'?(hiit.setTo==='work'?'work':'rest'):'rest');
+  tEl.innerHTML=(phase==='set'?'<div class="tg-lbl" style="color:var(--warn)">DIAL IT '+(hiit.setTo==='work'?'UP':'DOWN')+' — clock is running</div>':'')+targetText(hiit.machine,p,tgtPhase,phase!=='set');
   tEl.classList.toggle('setphase',phase==='set');
-  if(nEl)nEl.innerHTML=nextText(hiit.machine,p,phase,Math.max(1,hiit.round));
+  if(nEl)nEl.innerHTML=nextText(hiit.machine,p,hiit.idx);
   if(aEl)aEl.innerHTML=adjustHtml();
+}
+/* move to plan[i] and arm the deadline; silent=true when catching up across
+   blocks that already elapsed while the tab was throttled */
+function hiitEnter(i,silent){
+  var b=hiit.plan[i];
+  hiit.idx=i;hiit.phase=b.phase;hiit.setTo=b.setTo||'';hiit.round=b.round||hiit.round;
+  hiit.rem=b.dur;hiit.endAt=Date.now()+b.dur*1000;hiit.lastBeep=-1;
+  if(!silent){
+    if(b.phase==='set')flash();
+    else if(b.phase==='work')beep('work');
+    else beep('rest');
+  }
 }
 function hiitStart(machine){
   if(!MACHINES[machine])return;
   var c=cardioState(),st=c.hiit[machine]||{level:0,history:[]};
   hiit.machine=machine;hiit.params=Engine.cardioParams(machine,st.level);
-  hiit.round=0;hiit.phase='prep';hiit.rem=15;hiit.paused=false;hiit.sessionStart=Date.now();hiit.adj=0;hiit.setTo='';
+  hiit.plan=hiitBuildPlan(hiit.params,st.warmSec,st.coolSec);
+  hiit.round=0;hiit.paused=false;hiit.pausedMs=0;hiit.sessionStart=Date.now();hiit.adj=0;
+  hiitEnter(0,true);
   setHead(MACHINES[machine].icon+' '+MACHINES[machine].name,'Turn the phone sideways for the big timer');
   showView('cardiorun');hiitRender();
   try{
@@ -2605,44 +2791,50 @@ function hiitStart(machine){
   }catch(e){}
   wakeOn();
   if(hiit.timer)clearInterval(hiit.timer);
-  hiit.timer=setInterval(hiitTick,1000);
+  hiit.timer=setInterval(hiitTick,200);
 }
+/* Deadline-based, the setclock.html convention: iOS throttles timers the moment
+   the screen dims, so remaining time is always recomputed from a wall-clock
+   deadline rather than decremented once per tick. */
 function hiitTick(){
-  if(hiit.paused)return;
-  hiit.rem--;
-  if(hiit.rem<=3&&hiit.rem>0)beep('tick');
-  if(hiit.rem<=0)hiitAdvance();
-  hiitRender();
-}
-function hiitAdvance(){
-  var p=hiit.params;
-  if(hiit.phase==='prep'){hiit.round=1;hiit.phase='work';hiit.rem=p.workSec;flash();return;}
-  if(hiit.phase==='work'){
-    if(hiit.round>=p.rounds)return hiitComplete();
-    hiit.phase='set';hiit.setTo='rest';hiit.rem=p.transSec;flash();return;
+  if(hiit.paused||!hiit.plan)return;
+  var rem=Math.ceil((hiit.endAt-Date.now())/1000),moved=false;
+  /* the tab may have been away long enough to sleep through whole blocks */
+  while(rem<=0){
+    if(hiit.idx>=hiit.plan.length-1)return hiitComplete();
+    var over=-rem;
+    hiitEnter(hiit.idx+1,over>2);
+    hiit.endAt-=over*1000;
+    rem=Math.ceil((hiit.endAt-Date.now())/1000);
+    moved=true;
   }
-  if(hiit.phase==='set'){
-    if(hiit.setTo==='rest'){hiit.phase='rest';hiit.rem=p.restSec;beep('rest');return;}
-    hiit.round++;hiit.phase='work';hiit.rem=p.workSec;beep('work');return;
+  /* moved matters on its own: a new block often starts on the same second count
+     the old one ended on, and the phase change must still paint */
+  if(moved||rem!==hiit.rem){
+    hiit.rem=rem;
+    if(rem<=3&&rem>0&&rem!==hiit.lastBeep){hiit.lastBeep=rem;beep('tick');}
+    hiitRender();
   }
-  if(hiit.phase==='rest'){hiit.phase='set';hiit.setTo='work';hiit.rem=p.transSec;flash();return;}
 }
 function hiitPause(){
   hiit.paused=!hiit.paused;
+  if(hiit.paused)hiit.pausedMs=Math.max(0,hiit.endAt-Date.now());
+  else hiit.endAt=Date.now()+hiit.pausedMs;
   var b=$('hPauseBtn');if(b)b.textContent=hiit.paused?'▶ Resume':'⏸ Pause';
   haptic();
 }
-function hiitSkip(){hiit.rem=1;haptic();}
+function hiitSkip(){hiit.endAt=Date.now();hiit.paused=false;haptic();hiitTick();}
 function hiitAskStop(){
   uiConfirm('End this cardio session? Without a rating the level does not change.','End cardio').then(function(ok){if(ok)hiitStop();});
 }
 function hiitStop(){
   if(hiit.timer){clearInterval(hiit.timer);hiit.timer=null;}
-  wakeOff();hiit.machine=null;
+  wakeOff();hiit.machine=null;hiit.plan=null;delete document.body.dataset.phase;
   openCardio();showView('cardio',true);
 }
 function hiitComplete(){
   if(hiit.timer){clearInterval(hiit.timer);hiit.timer=null;}
+  hiit.rem=0;hiit.plan=null;delete document.body.dataset.phase;
   wakeOff();beep('done');haptic('success');
   var p=hiit.params,dur=Math.round((Date.now()-hiit.sessionStart)/1000);
   hiit._doneDur=dur;
@@ -2665,11 +2857,12 @@ function logAvgHr(){
   uiPrompt('Average heart rate for that session, in bpm.','','Average HR').then(function(v){
     if(v===null)return;
     var n=parseInt(v,10);
-    var hd=Engine.cardioHrDelta(n,0);
-    if(!hd.valid){toast('Enter a bpm between 60 and 215',true);return;}
     var c=cardioState(),mk=hiit.machine;
+    var hd=Engine.cardioHrDelta(n,c.maxHR||MAXHR_DEF);
+    if(!hd.valid){toast('Enter a bpm between 60 and 215',true);return;}
     c.hrLog=c.hrLog||[];
-    c.hrLog.push({date:todayStr(),machine:MACHINES[mk].name,avgHR:n,delta:hd.delta,used:true});
+    c.hrLog.push({date:todayStr(),machine:MACHINES[mk].name,avgHR:n,maxHR:c.maxHR||MAXHR_DEF,
+                  pct:Math.floor(hd.eff*100),delta:hd.delta,used:true}); /* floor, so 92.9% never displays as the 93% redline it did not hit */
     if(hd.delta&&c.hiit[mk]){
       c.hiit[mk].level=Math.max(0,c.hiit[mk].level+hd.delta);
       toast(hd.delta>0?'You had more in the tank — bumping it up':'That was a redline — easing off next time');

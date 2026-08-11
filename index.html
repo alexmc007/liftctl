@@ -682,13 +682,15 @@ let state = {
   activeGym:'g_main',
   customEx:[],
   sets:[],
+  prs:[],
+  soreness:{},
+  prefer:{},
   targets:{...DEFAULT_TARGETS},
   daysPerWeek:4,
   /* How many times a week each muscle gets trained. Alex wants big sessions,
      not 2 sets sprinkled over five days, so the weekly target is divided by
      this to get one day's allowance. 1 = everything in a single session. */
   freq:2,
-  soreness:{},
   unit:'lb',
   restDefault:120,
   sound:true,
@@ -714,6 +716,11 @@ function load(){
       if(!state.setup) state.setup = {};
       /* stretch and cardio arrived after people already had saves; fill the
          shapes in rather than letting a missing key throw on first render */
+      /* normalise every container up front. A save written by an older build is
+         missing whatever was added since, and a missing array is a crash the
+         first time something pushes to it. */
+      ['sets','prs','customEx'].forEach(k => { if(!Array.isArray(state[k])) state[k] = []; });
+      ['soreness','prefer','setup'].forEach(k => { if(!state[k] || typeof state[k] !== 'object') state[k] = {}; });
       if(!state.stretch || !Array.isArray(state.stretch.log)) state.stretch = {log:[]};
       if(!state.cardio) state.cardio = {};
       state.cardio.levels  = Object.assign({treadmill:16, bike:15, row:15}, state.cardio.levels || {});

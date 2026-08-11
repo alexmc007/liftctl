@@ -159,10 +159,10 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(11,13,16,.
 
 <nav><div class="tabs" id="tabs">
   <button class="tab on" data-tab="today"><i>◎</i>Today</button>
-  <button class="tab" data-tab="log"><i>✚</i>Log</button>
-  <button class="tab" data-tab="hist"><i>▤</i>History</button>
-  <button class="tab" data-tab="plan"><i>◈</i>Plan</button>
-  <button class="tab" data-tab="stats"><i>▦</i>Stats</button>
+  <button class="tab" data-tab="log"><i>✚</i>Lift</button>
+  <button class="tab" data-tab="stretch"><i>⟡</i>Stretch</button>
+  <button class="tab" data-tab="cardio"><i>◈</i>Cardio</button>
+  <button class="tab" data-tab="more"><i>▤</i>More</button>
 </div></nav>
 
 <div class="scrim" id="scrim" data-act="closesheet"></div>
@@ -548,6 +548,122 @@ function matchEx(e, q){
   });
 }
 
+/* ---------- stretching ----------
+   Routines, not a set-bank: the point is to be walked through it while lying on
+   the floor, so each hold is a timed phase and the app advances on its own.
+   `each` means the hold repeats per side. Areas map to tracked muscles so a
+   routine can be suggested off the back of what is actually sore. */
+const STRETCH = [
+  {id:'postleg', n:'After Legs', why:'Quads, hips and hamstrings once the session is done',
+   areas:['quads','hams','glutes','adductors'], holds:[
+    ['Couch stretch', 45, 'each'], ['Standing quad pull', 30, 'each'],
+    ['Seated forward fold', 45, 'both'], ['Figure-four glute', 45, 'each'],
+    ['Butterfly (adductors)', 45, 'both'], ['Frog stretch', 45, 'both'],
+    ['Calf against wall', 30, 'each']
+  ]},
+  {id:'postpush', n:'After Pushing', why:'Chest, front delts and lats after benching or pressing',
+   areas:['chest','delts','triceps','lats'], holds:[
+    ['Doorway pec stretch', 45, 'each'], ['Overhead triceps', 30, 'each'],
+    ['Cross-body shoulder', 30, 'each'], ['Child pose with lat reach', 45, 'each'],
+    ['Thread the needle', 40, 'each']
+  ]},
+  {id:'postpull', n:'After Pulling',  why:'Lats, forearms and the upper back after rows and pull-ups',
+   areas:['lats','upperback','biceps','forearms'], holds:[
+    ['Dead hang', 30, 'both'], ['Lat side-bend', 40, 'each'],
+    ['Wrist flexor stretch', 30, 'each'], ['Biceps doorway', 30, 'each'],
+    ['Seated thoracic twist', 40, 'each']
+  ]},
+  {id:'hips', n:'Hips & Lower Back', why:'For desk days and a stiff lower back',
+   areas:['glutes','hams','lowerback','adductors'], holds:[
+    ['90/90 hip', 45, 'each'], ['Pigeon', 60, 'each'], ['Low lunge hip flexor', 45, 'each'],
+    ['Supine twist', 45, 'each'], ['Knees to chest', 40, 'both'], ['Cat-cow', 45, 'both']
+  ]},
+  {id:'thoracic', n:'Shoulders & T-Spine', why:'Overhead position and upper-back rotation',
+   areas:['delts','upperback','traps','chest'], holds:[
+    ['Wall slides', 40, 'both'], ['Open book', 45, 'each'],
+    ['Prayer stretch on bench', 45, 'both'], ['Neck side-bend', 30, 'each'],
+    ['Trap stretch', 30, 'each']
+  ]},
+  {id:'prelift', n:'Before Lifting', why:'Short and dynamic — moves, not long holds',
+   areas:[], holds:[
+    ['Leg swings front-back', 30, 'each'], ['Leg swings side-side', 30, 'each'],
+    ['Arm circles', 30, 'both'], ['Bodyweight squat hold', 30, 'both'],
+    ['Walking hip openers', 40, 'both'], ['Band pull-aparts', 30, 'both']
+  ]},
+  {id:'full', n:'Full Body', why:'The long one — everything, once a week',
+   areas:['quads','hams','glutes','chest','lats','delts','adductors','lowerback'], holds:[
+    ['Couch stretch', 45, 'each'], ['Pigeon', 45, 'each'], ['Seated forward fold', 45, 'both'],
+    ['Butterfly', 45, 'both'], ['Doorway pec', 45, 'each'], ['Lat side-bend', 40, 'each'],
+    ['Supine twist', 45, 'each'], ['Calf against wall', 30, 'each'], ['Child pose', 60, 'both']
+  ]}
+];
+const routineById = id => STRETCH.find(r => r.id === id);
+/* total seconds, counting per-side holds twice */
+function routineSecs(r){ return r.holds.reduce((t,h) => t + h[1] * (h[2] === 'each' ? 2 : 1), 0); }
+const lastStretch = id => (state.stretch.log || []).filter(x => !id || x.routineId === id)
+  .reduce((b,x) => (!b || x.ts > b.ts) ? x : b, null);
+
+/* ---------- cardio ----------
+   Ported from LiftCtl's HIIT engine, which auto-regulates: one level per machine,
+   the generator turns a level into real numbers, and post-session feedback moves
+   the level. Consecutive "too easy" ratings accelerate, because machines gain so
+   little per level that a flat bump used to round away to the same speed. */
+const MACHINES = [
+  {k:'treadmill', n:'Treadmill'}, {k:'bike', n:'Bike'}, {k:'row', n:'Rower'}
+];
+function cardioParams(machine, level){
+  level = Math.max(0, level || 0);
+  if(machine === 'treadmill'){
+    return {speed:Math.min(9.5, 5.8 + level*0.06).toFixed(1),
+            incline:Math.min(7, 2 + Math.floor(level/6)*0.5).toFixed(1),
+            easySpeed:Math.min(4.5, 3.0 + Math.min(level*0.03, 1.5)).toFixed(1),
+            workSec:Math.min(240, 75 + Math.floor(level*3)),
+            restSec:Math.max(45, 90 - Math.floor(level/2)),
+            rounds:Math.min(6, 4 + Math.floor(level/12))};
+  }
+  if(machine === 'bike'){
+    return {rpm:Math.min(95, 65 + Math.floor(level*0.8)),
+            easyRpm:Math.max(40, 55 - Math.floor(level/4)),
+            workSec:Math.min(120, 35 + Math.floor(level*2)),
+            restSec:Math.max(40, 70 - Math.floor(level/2)),
+            rounds:Math.min(7, 5 + Math.floor(level/12))};
+  }
+  return {paceSec:Math.max(115, 138 - Math.floor(level)),
+          easyPaceSec:Math.max(150, 170 - Math.floor(level/3)),
+          spm:Math.min(32, 28 + Math.floor(level/6)),
+          workSec:Math.min(240, 60 + Math.floor(level*2.5)),
+          restSec:Math.max(50, 90 - Math.floor(level/2)),
+          rounds:Math.min(6, 4 + Math.floor(level/12))};
+}
+function cardioApplyFeedback(level, machine, rating, easyStreak){
+  let l = Math.max(0, level || 0); const st = easyStreak || 0;
+  if(rating === 'easy') return {level:l + Math.min(2.5 + 1.25*st, 6.5), streak:st + 1};
+  if(rating === 'hard') return {level:Math.max(0, l - 1.5), streak:0};
+  return {level:l + 0.75, streak:0};
+}
+const mmss = s => Math.floor(s/60) + ':' + String(Math.round(s%60)).padStart(2,'0');
+function cardioTarget(machine, p){
+  if(machine === 'treadmill') return p.speed + ' mph @ ' + p.incline + '%';
+  if(machine === 'bike')      return p.rpm + ' rpm';
+  return mmss(p.paceSec) + '/500m @ ' + p.spm + ' spm';
+}
+function cardioEasy(machine, p){
+  if(machine === 'treadmill') return p.easySpeed + ' mph';
+  if(machine === 'bike')      return p.easyRpm + ' rpm';
+  return mmss(p.easyPaceSec) + '/500m';
+}
+/* build the whole session as a flat phase list the player can just walk */
+function cardioPhases(machine, level){
+  const p = cardioParams(machine, level), ph = [];
+  ph.push({label:'Warm up', sub:cardioEasy(machine,p), sec:180, tone:'easy'});
+  for(let i = 1; i <= p.rounds; i++){
+    ph.push({label:'Work · round ' + i + ' of ' + p.rounds, sub:cardioTarget(machine,p), sec:p.workSec, tone:'work'});
+    if(i < p.rounds) ph.push({label:'Recover', sub:cardioEasy(machine,p), sec:p.restSec, tone:'easy'});
+  }
+  ph.push({label:'Cool down', sub:cardioEasy(machine,p), sec:180, tone:'easy'});
+  return {phases:ph, params:p, total:ph.reduce((t,x) => t + x.sec, 0)};
+}
+
 /* ---------- state ---------- */
 const KEY = 'setclock_v1';
 const DEFAULT_TARGETS = {chest:12,lats:9,upperback:9,traps:4,lowerback:3,delts:10,reardelts:6,
@@ -578,7 +694,12 @@ let state = {
   sound:true,
   /* machine setup notes, keyed gymId|exerciseId — the seat number on the leg
      press at Muscle Up is not the seat number at Centene, so this is per gym */
-  setup:{}
+  setup:{},
+
+  stretch:{log:[]},
+  /* Levels carried over from LiftCtl's cardio engine — Alex was at treadmill 16
+     as of 2026-07-05, so the ramp resumes there rather than restarting at zero. */
+  cardio:{levels:{treadmill:16, bike:15, row:15}, streaks:{}, log:[], vo2Log:[], maxHR:190}
 };
 const setupKey = (exId, gymId) => (gymId || state.activeGym) + '|' + exId;
 const getSetup = exId => (state.setup || {})[setupKey(exId)] || '';
@@ -591,6 +712,14 @@ function load(){
       state = Object.assign(state, s);
       state.targets = Object.assign({...DEFAULT_TARGETS}, s.targets || {});
       if(!state.setup) state.setup = {};
+      /* stretch and cardio arrived after people already had saves; fill the
+         shapes in rather than letting a missing key throw on first render */
+      if(!state.stretch || !Array.isArray(state.stretch.log)) state.stretch = {log:[]};
+      if(!state.cardio) state.cardio = {};
+      state.cardio.levels  = Object.assign({treadmill:16, bike:15, row:15}, state.cardio.levels || {});
+      state.cardio.streaks = state.cardio.streaks || {};
+      ['log','vo2Log'].forEach(k => { if(!Array.isArray(state.cardio[k])) state.cardio[k] = []; });
+      if(!state.cardio.maxHR) state.cardio.maxHR = 190;
 
       /* The single 'back' muscle became lats / upper back / traps / lower back.
          Logged sets are unaffected — they store an exercise id and credits are
@@ -1120,6 +1249,100 @@ function sheetCopyFallback(json){
     + 'border-radius:10px;padding:10px 12px;width:100%;outline:none;font-family:ui-monospace,monospace;font-size:11px">'
     + esc(json) + '</textarea>');
   const b = $('copyBox'); if(b){ b.focus(); b.select(); }
+}
+
+/* ---------- guided session player ----------
+   One player drives both stretching and cardio: a flat list of timed phases it
+   walks on its own so nothing has to be tapped mid-hold or mid-interval. Times
+   run off a wall-clock deadline, not a per-tick decrement, because a locked
+   phone throttles setInterval and would silently stretch every hold. */
+let player = null, playerTick = null;
+
+function playerStart(cfg){
+  ensureAudio();                      // called from a tap, which is the only time iOS allows it
+  player = {kind:cfg.kind, title:cfg.title, meta:cfg.meta, phases:cfg.phases,
+            onDone:cfg.onDone, idx:0, paused:false, leftMs:cfg.phases[0].sec*1000,
+            deadline:Date.now() + cfg.phases[0].sec*1000, started:Date.now()};
+  if(playerTick) clearInterval(playerTick);
+  playerTick = setInterval(playerStep, 200);
+  render();
+}
+function playerGoto(i){
+  if(!player) return;
+  if(i >= player.phases.length) return playerFinish();
+  if(i < 0) i = 0;
+  player.idx = i;
+  player.leftMs = player.phases[i].sec * 1000;
+  player.deadline = Date.now() + player.leftMs;
+  player.paused = false;
+  beep();
+  render();
+}
+function playerStep(){
+  if(!player || player.paused) return;
+  const left = player.deadline - Date.now();
+  if(left <= 0) return playerGoto(player.idx + 1);
+  const before = Math.ceil(player.leftMs/1000);
+  player.leftMs = left;
+  if(Math.ceil(left/1000) !== before) renderPlayerClock();
+}
+function playerPause(){
+  if(!player) return;
+  if(player.paused){ player.deadline = Date.now() + player.leftMs; player.paused = false; }
+  else { player.leftMs = Math.max(0, player.deadline - Date.now()); player.paused = true; }
+  render();
+}
+function playerQuit(){
+  if(playerTick) clearInterval(playerTick);
+  playerTick = null; player = null; render();
+}
+function playerFinish(){
+  const p = player;
+  if(playerTick) clearInterval(playerTick);
+  playerTick = null; player = null;
+  beep();
+  if(p && p.onDone) p.onDone(Math.round((Date.now() - p.started)/1000));
+  render();
+}
+/* only the digits redraw each second — re-rendering the whole view once a
+   second made the buttons feel dead under a thumb */
+function renderPlayerClock(){
+  const el = $('pClock'); if(!el || !player) return;
+  el.textContent = mmss(Math.max(0, Math.ceil(player.leftMs/1000)));
+  const bar = $('pBar');
+  if(bar){
+    const ph = player.phases[player.idx];
+    bar.style.width = (100 - Math.max(0, player.leftMs/1000) / ph.sec * 100).toFixed(1) + '%';
+  }
+}
+function viewPlayer(){
+  const ph = player.phases[player.idx];
+  const done = player.phases.slice(0, player.idx).reduce((t,x) => t + x.sec, 0);
+  const total = player.phases.reduce((t,x) => t + x.sec, 0);
+  const next = player.phases[player.idx + 1];
+  const tone = ph.tone === 'work' ? 'bad' : ph.tone === 'easy' ? 'blue' : 'acc';
+
+  let h = '<div class="card" style="margin-top:14px;text-align:center;padding:22px 16px">';
+  h += '<div class="tiny muted" style="letter-spacing:.09em;text-transform:uppercase;font-weight:700">'
+     + esc(player.title) + '</div>';
+  h += '<div style="font-size:21px;font-weight:700;margin-top:10px;line-height:1.2" class="g-' + tone + '">'
+     + esc(ph.label) + '</div>';
+  if(ph.sub) h += '<div class="sm muted" style="margin-top:5px">' + esc(ph.sub) + '</div>';
+  h += '<div id="pClock" class="mono" style="font-size:66px;font-weight:800;line-height:1;margin:16px 0 6px">'
+     + mmss(Math.ceil(player.leftMs/1000)) + '</div>';
+  h += '<div class="bar"><i id="pBar" class="b-' + tone + '" style="width:0%"></i></div>';
+  h += '<div class="tiny muted" style="margin-top:8px">Step ' + (player.idx+1) + ' of ' + player.phases.length
+     + ' · ' + mmss(done) + ' of ' + mmss(total) + '</div>';
+  if(next) h += '<div class="sm" style="margin-top:12px;color:var(--dim)">Next: <b style="color:var(--txt)">'
+     + esc(next.label) + '</b>' + (next.sub ? ' · ' + esc(next.sub) : '') + '</div>';
+  h += '</div>';
+
+  h += '<div class="grid2"><button class="btn" data-act="pback">‹ Back</button>'
+     + '<button class="btn" data-act="pskip">Skip ›</button></div>';
+  h += '<button class="btn ' + (player.paused ? 'pri' : '') + ' wide" style="margin-top:9px" data-act="ppause">'
+     + (player.paused ? 'Resume' : 'Pause') + '</button>';
+  h += '<button class="btn wide ghost" style="margin-top:9px;color:var(--dim2)" data-act="pquit">End without logging</button>';
+  return h;
 }
 
 /* ---------- ui plumbing ---------- */
@@ -1689,6 +1912,172 @@ function renderLogSheet(){
   });
 }
 
+/* ============================ STRETCH ============================ */
+function stretchPhases(r){
+  const out = [];
+  r.holds.forEach(h => {
+    const [name, sec, side] = h;
+    if(side === 'each'){
+      out.push({label:name, sub:'Left side', sec, tone:'calm'});
+      out.push({label:name, sub:'Right side', sec, tone:'calm'});
+    } else out.push({label:name, sub:'Hold', sec, tone:'calm'});
+  });
+  return out;
+}
+function startStretch(id){
+  const r = routineById(id); if(!r) return;
+  playerStart({
+    kind:'stretch', title:r.n, phases:stretchPhases(r),
+    onDone: secs => {
+      state.stretch.log.push({id:uid(), ts:Date.now(), routineId:r.id, secs, areas:r.areas});
+      save();
+      toast('Logged ' + Math.round(secs/60) + ' min of ' + r.n);
+    }
+  });
+}
+function viewStretch(){
+  if(player && player.kind === 'stretch') return viewPlayer();
+  const log = state.stretch.log || [];
+  const weekMin = Math.round(log.filter(x => x.ts >= thisWeek()).reduce((t,x) => t + x.secs, 0) / 60);
+
+  let h = storageBanner();
+  h += '<div class="card"><div class="row"><div class="fl"><h2 style="font-size:17px">Stretching</h2>'
+     + '<div class="sm muted" style="margin-top:3px">'
+     + (log.length ? 'Last: ' + esc(routineById(lastStretch().routineId) ? routineById(lastStretch().routineId).n : '—')
+                     + ' · ' + fmtAgo(Date.now() - lastStretch().ts)
+                   : 'Nothing logged yet') + '</div></div>'
+     + '<div class="pnum"><b class="mono">' + weekMin + '</b><s>min this week</s></div></div></div>';
+
+  // suggest off the back of soreness and what was trained
+  const soreAreas = MK.filter(k => { const s = soreness(k); return s && s.lvl >= 2; });
+  if(soreAreas.length){
+    const best = STRETCH.filter(r => r.areas.length)
+      .map(r => ({r, hit:r.areas.filter(a => soreAreas.indexOf(a) !== -1).length}))
+      .sort((a,b) => b.hit - a.hit)[0];
+    if(best && best.hit){
+      h += '<div class="card" style="border-color:rgba(96,165,250,.4);background:rgba(96,165,250,.07)">'
+         + '<div class="row" style="gap:8px"><span class="dot b-blue"></span>'
+         + '<h3 style="font-size:14px" class="g-blue">' + esc(best.r.n) + '</h3></div>'
+         + '<div class="sm" style="margin-top:8px;color:var(--dim)">You reported '
+         + soreAreas.filter(a => best.r.areas.indexOf(a) !== -1).map(a => M[a].n.toLowerCase()).join(' and ')
+         + ' sore. This one covers it.</div>'
+         + '<button class="btn blue wide" style="margin-top:10px" data-act="stretchgo" data-r="' + best.r.id + '">Start · '
+         + Math.round(routineSecs(best.r)/60) + ' min</button></div>';
+    }
+  }
+
+  h += '<div class="sect">Routines</div>';
+  STRETCH.forEach(r => {
+    const last = lastStretch(r.id);
+    h += '<div class="card"><div class="row"><div class="fl">'
+       + '<h3 style="font-size:15px">' + esc(r.n) + '</h3>'
+       + '<div class="tiny muted" style="margin-top:3px">' + esc(r.why) + '</div></div>'
+       + '<div class="pnum"><b class="mono" style="font-size:16px">' + Math.round(routineSecs(r)/60) + '</b><s>min</s></div></div>'
+       + '<div class="tiny muted" style="margin-top:9px">' + r.holds.length + ' holds · '
+       + (last ? 'last done ' + fmtAgo(Date.now() - last.ts) : 'never done') + '</div>'
+       + '<div class="grid2" style="margin-top:10px">'
+       + '<button class="btn pri" data-act="stretchgo" data-r="' + r.id + '">Start</button>'
+       + '<button class="btn" data-act="stretchpeek" data-r="' + r.id + '">See holds</button></div></div>';
+  });
+  return h;
+}
+function sheetStretchPeek(id){
+  const r = routineById(id);
+  let h = '<div class="sheeth"><div class="row"><div class="fl"><h2>' + esc(r.n) + '</h2>'
+        + '<div class="tiny muted" style="margin-top:3px">' + Math.round(routineSecs(r)/60) + ' min · '
+        + r.holds.length + ' holds</div></div><button class="btn sm" data-act="closesheet">Done</button></div></div>';
+  r.holds.forEach((x,i) => {
+    h += '<div class="setline"><span class="idx">' + (i+1) + '</span>'
+       + '<span class="fl" style="font-weight:600">' + esc(x[0]) + '</span>'
+       + '<span class="tiny muted">' + x[1] + 's' + (x[2] === 'each' ? ' each side' : '') + '</span></div>';
+  });
+  h += '<button class="btn pri wide" style="margin-top:12px" data-act="stretchgo" data-r="' + r.id + '">Start routine</button>';
+  openSheet(h);
+}
+
+/* ============================ CARDIO ============================ */
+function startCardio(machine){
+  const lvl = state.cardio.levels[machine] || 0;
+  const built = cardioPhases(machine, lvl);
+  const mn = (MACHINES.find(m => m.k === machine) || {}).n || machine;
+  playerStart({
+    kind:'cardio', title:mn + ' · level ' + (Math.round(lvl*10)/10), phases:built.phases,
+    onDone: secs => {
+      state.cardio.log.push({id:uid(), ts:Date.now(), machine, level:lvl, secs,
+                             rounds:built.params.rounds, params:built.params});
+      save();
+      sheetCardioFeedback(machine, lvl);
+    }
+  });
+}
+function sheetCardioFeedback(machine, lvl){
+  const mn = (MACHINES.find(m => m.k === machine) || {}).n || machine;
+  openSheet('<div class="sheeth"><div class="row"><div class="fl"><h2>Done · ' + esc(mn) + '</h2>'
+    + '<div class="tiny muted" style="margin-top:3px">How did that feel? It sets next time.</div></div></div></div>'
+    + '<button class="btn wide" style="margin-bottom:9px" data-act="cfb" data-m="' + machine + '" data-v="easy">Too easy — push it up</button>'
+    + '<button class="btn pri wide" style="margin-bottom:9px" data-act="cfb" data-m="' + machine + '" data-v="right">About right</button>'
+    + '<button class="btn wide" data-act="cfb" data-m="' + machine + '" data-v="hard">Too hard — back off</button>'
+    + '<div class="tiny muted" style="margin-top:12px">Currently level ' + (Math.round(lvl*10)/10)
+    + '. Saying "too easy" twice in a row ramps faster, because these machines gain very little per level.</div>');
+}
+function viewCardio(){
+  if(player && player.kind === 'cardio') return viewPlayer();
+  const c = state.cardio;
+  let h = storageBanner();
+
+  const wk = c.log.filter(x => x.ts >= thisWeek());
+  const lastS = c.log.slice().sort((a,b) => b.ts - a.ts)[0];
+  h += '<div class="card"><div class="row"><div class="fl"><h2 style="font-size:17px">Cardio</h2>'
+     + '<div class="sm muted" style="margin-top:3px">'
+     + (lastS ? 'Last: ' + esc((MACHINES.find(m => m.k === lastS.machine)||{}).n || lastS.machine)
+                + ' · ' + fmtAgo(Date.now() - lastS.ts) : 'Nothing logged yet') + '</div></div>'
+     + '<div class="pnum"><b class="mono">' + wk.length + '</b><s>this week</s></div></div></div>';
+
+  h += '<div class="sect">Start an interval session</div>';
+  MACHINES.forEach(m => {
+    const lvl = c.levels[m.k] || 0, p = cardioParams(m.k, lvl), built = cardioPhases(m.k, lvl);
+    h += '<div class="card"><div class="row"><div class="fl"><h3 style="font-size:15px">' + m.n + '</h3>'
+       + '<div class="tiny muted" style="margin-top:3px">Level ' + (Math.round(lvl*10)/10)
+       + ' · ' + p.rounds + ' × ' + mmss(p.workSec) + ' work / ' + mmss(p.restSec) + ' easy</div></div>'
+       + '<div class="pnum"><b class="mono" style="font-size:16px">' + Math.round(built.total/60) + '</b><s>min</s></div></div>';
+    h += '<div class="row sm" style="margin-top:10px;gap:14px">'
+       + '<div><div class="tiny muted">Work at</div><div style="font-weight:650;margin-top:2px" class="g-bad">' + cardioTarget(m.k,p) + '</div></div>'
+       + '<div><div class="tiny muted">Recover at</div><div style="font-weight:650;margin-top:2px" class="g-blue">' + cardioEasy(m.k,p) + '</div></div></div>';
+    h += '<button class="btn pri wide" style="margin-top:11px" data-act="cardiogo" data-m="' + m.k + '">Start</button></div>';
+  });
+
+  // VO2 max is typed in from a watch or a test — a browser cannot read it
+  const v = (c.vo2Log || []).slice().sort((a,b) => b.ts - a.ts);
+  h += '<div class="sect">VO₂ max</div><div class="card">';
+  h += '<div class="row"><div class="fl"><div class="sm" style="font-weight:600">'
+     + (v.length ? v[0].val + ' <span class="tiny muted">· ' + fmtDay(v[0].ts) + '</span>' : 'No reading yet') + '</div>'
+     + '<div class="tiny muted" style="margin-top:3px">Type in whatever your watch or a test gives you — a web app cannot read it.</div></div>'
+     + '<button class="btn sm" data-act="vo2add">Add</button></div>';
+  if(v.length > 1){
+    const first = v[v.length-1], delta = v[0].val - first.val;
+    h += '<div class="tiny ' + (delta > 0 ? 'g-acc' : delta < 0 ? 'g-bad' : 'muted') + '" style="margin-top:9px">'
+       + (delta > 0 ? '+' : '') + (Math.round(delta*10)/10) + ' since ' + fmtDay(first.ts) + '</div>';
+    h += '<div style="margin-top:9px">' + v.slice(0,6).map(x =>
+        '<div class="row tiny" style="padding:4px 0"><span class="fl muted">' + fmtDay(x.ts) + '</span>'
+        + '<span class="mono" style="font-weight:650">' + x.val + '</span></div>').join('') + '</div>';
+  }
+  h += '</div>';
+
+  if(c.log.length){
+    h += '<div class="sect">Recent sessions</div><div class="card">';
+    c.log.slice().sort((a,b) => b.ts - a.ts).slice(0,8).forEach(s => {
+      h += '<div class="row" style="padding:7px 0;border-bottom:1px solid var(--line)">'
+         + '<div class="fl"><div class="sm" style="font-weight:600">'
+         + esc((MACHINES.find(m => m.k === s.machine)||{}).n || s.machine) + '</div>'
+         + '<div class="tiny muted" style="margin-top:2px">' + fmtDay(s.ts) + ' · ' + s.rounds + ' rounds · level '
+         + (Math.round(s.level*10)/10) + '</div></div>'
+         + '<span class="mono sm muted">' + Math.round(s.secs/60) + ' min</span></div>';
+    });
+    h += '</div>';
+  }
+  return h;
+}
+
 /* ============================ HISTORY ============================ */
 function viewHist(){
   if(!state.sets.length) return '<div class="empty">No sets yet. Log one from the Log tab and the clock starts.</div>';
@@ -1934,21 +2323,34 @@ function viewStats(){
 }
 
 /* ============================ render ============================ */
+/* History, Stats and Plan share the More tab — five bottom tabs is the most a
+   thumb can hit reliably, and the three disciplines had to come first. */
+let moreTab = 'hist';
+function viewMore(){
+  let h = '<div class="chips" style="margin:2px 0 4px">'
+        + [['hist','History'],['stats','Stats'],['plan','Plan']].map(([k,n]) =>
+            '<button class="chip ' + (moreTab === k ? 'on' : '') + '" data-act="more" data-v="' + k + '">' + n + '</button>').join('')
+        + '</div>';
+  return h + (moreTab === 'hist' ? viewHist() : moreTab === 'stats' ? viewStats() : viewPlan());
+}
+
 function render(){
   $('gymName').textContent = activeGym().name;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
   const v = $('view');
+  // the player owns the screen while it runs; the banner would only shove it down
+  if(player){ v.innerHTML = viewPlayer(); return; }
   v.innerHTML = storageBanner()
-              + (tab === 'today' ? viewToday()
-              :  tab === 'log'   ? viewLog()
-              :  tab === 'hist'  ? viewHist()
-              :  tab === 'plan'  ? viewPlan()
-              :  viewStats());
+              + (tab === 'today'   ? viewToday()
+              :  tab === 'log'     ? viewLog()
+              :  tab === 'stretch' ? viewStretch()
+              :  tab === 'cardio'  ? viewCardio()
+              :  viewMore());
   if(tab === 'log'){
     const s = $('exSearch');
     s.addEventListener('input', () => { exFilter = s.value; const p = s.selectionStart; render(); const n = $('exSearch'); n.focus(); n.setSelectionRange(p,p); });
   }
-  if(tab === 'plan'){
+  if(tab === 'more' && moreTab === 'plan'){
     v.querySelectorAll('[data-tgtin]').forEach(i => i.addEventListener('change', () => {
       state.targets[i.dataset.tgtin] = Math.max(0, Math.round(+i.value || 0)); save(); render();
     }));
@@ -2052,6 +2454,40 @@ document.addEventListener('click', ev => {
 
     case 'muscle': sheetMuscle(el.dataset.m); break;
     case 'bodymode': state.bodyMode = el.dataset.v; save(); render(); break;
+    case 'more': moreTab = el.dataset.v; render(); window.scrollTo(0,0); break;
+
+    /* guided player */
+    case 'pskip':  playerGoto(player.idx + 1); break;
+    case 'pback':  playerGoto(player.idx - 1); break;
+    case 'ppause': playerPause(); break;
+    case 'pquit':
+      if(player && !confirm('End here? Nothing gets logged.')) break;
+      playerQuit(); break;
+
+    /* stretching */
+    case 'stretchgo':   closeSheet(); startStretch(el.dataset.r); break;
+    case 'stretchpeek': sheetStretchPeek(el.dataset.r); break;
+
+    /* cardio */
+    case 'cardiogo': startCardio(el.dataset.m); break;
+    case 'cfb': {
+      const m = el.dataset.m, r = el.dataset.v;
+      const res = cardioApplyFeedback(state.cardio.levels[m] || 0, m, r, state.cardio.streaks[m] || 0);
+      state.cardio.levels[m] = res.level;
+      state.cardio.streaks[m] = res.streak;
+      save(); closeSheet(); render();
+      toast('Next ' + m + ': level ' + (Math.round(res.level*10)/10));
+      break;
+    }
+    case 'vo2add': {
+      const raw = prompt('VO₂ max reading — type the number from your watch or test');
+      if(raw === null) break;
+      const val = parseFloat(raw);
+      if(!(val > 10 && val < 100)){ if(raw.trim()) alert('That does not look like a VO₂ max (expected roughly 20–90).'); break; }
+      state.cardio.vo2Log.push({ts:Date.now(), val:Math.round(val*10)/10});
+      save(); render(); toast('VO₂ ' + (Math.round(val*10)/10) + ' logged');
+      break;
+    }
     case 'sore': {
       if(!state.soreness) state.soreness = {};
       const mk = el.dataset.m, lvl = +el.dataset.v, cur = soreness(mk);

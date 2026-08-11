@@ -698,6 +698,11 @@ let state = {
      press at Muscle Up is not the seat number at Centene, so this is per gym */
   setup:{},
 
+  /* cross-device sync: url is an Apps Script /exec endpoint, device is a label
+     so the sheet can say which one wrote last. Empty url = sync switched off. */
+  sync:{url:'', device:'', rev:0, lastAt:0},
+  settingsAt:0,
+
   stretch:{log:[]},
   /* Levels carried over from LiftCtl's cardio engine — Alex was at treadmill 16
      as of 2026-07-05, so the ramp resumes there rather than restarting at zero. */
@@ -721,6 +726,8 @@ function load(){
          first time something pushes to it. */
       ['sets','prs','customEx'].forEach(k => { if(!Array.isArray(state[k])) state[k] = []; });
       ['soreness','prefer','setup'].forEach(k => { if(!state[k] || typeof state[k] !== 'object') state[k] = {}; });
+      if(!state.sync || typeof state.sync !== 'object') state.sync = {url:'', device:'', rev:0, lastAt:0};
+      if(!state.settingsAt) state.settingsAt = 0;
       if(!state.stretch || !Array.isArray(state.stretch.log)) state.stretch = {log:[]};
       if(!state.cardio) state.cardio = {};
       state.cardio.levels  = Object.assign({treadmill:16, bike:15, row:15}, state.cardio.levels || {});
@@ -797,9 +804,23 @@ function checkStorage(){
   }
   return storageOK;
 }
+/* Sync resolves single-value settings by last-write-wins, which needs to know
+   when they last changed. Deriving that from a fingerprint rather than stamping
+   it by hand means a new setting can never be added and forgotten. */
+function settingsFingerprint(){
+  return JSON.stringify([state.targets, state.freq, state.daysPerWeek, state.unit,
+                         state.restDefault, state.sound, state.bodyMode,
+                         state.gyms, state.setup, state.prefer]);
+}
+let lastFp = null;
+
 function save(){
   try{
-    localStorage.setItem(KEY, JSON.stringify(state));
+    const fp = settingsFingerprint();
+    if(lastFp !== null && fp !== lastFp) state.settingsAt = Date.now();
+    lastFp = fp;
+    // keys starting with _ are per-view scratch (sync status), never persisted
+    localStorage.setItem(KEY, JSON.stringify(state, (k,v) => k.charAt(0) === '_' ? undefined : v));
     lastSave = Date.now(); storageOK = true; saveErr = '';
   }catch(e){
     storageOK = false;
@@ -1235,6 +1256,93 @@ function importPayload(text){
   // existing setup notes win — this install's numbers are the ones just used
   if(s.setup) state.setup = Object.assign({}, s.setup, state.setup || {});
   return {added, seen:s.sets.length};
+}
+
+/* ---------- cross-device sync ----------
+   Same merge rules as a pasted backup, but automatic. Logs are unioned by id so
+   two devices that both trained never lose a session; settings take whichever
+   side was written last. A device that started from a stale revision is told to
+   pull and merge before it may push, so the phone cannot flatten the laptop. */
+function mergeRemote(remote){
+  if(!remote || typeof remote !== 'object') return {added:0};
+  let added = 0;
+  const unionById = (localArr, remoteArr) => {
+    if(!Array.isArray(remoteArr)) return localArr;
+    const seen = {}; localArr.forEach(x => { if(x && x.id) seen[x.id] = 1; });
+    remoteArr.forEach(x => { if(x && x.id && !seen[x.id]){ localArr.push(x); seen[x.id] = 1; added++; } });
+    return localArr;
+  };
+  state.sets = unionById(state.sets, remote.sets).sort((a,b) => a.ts - b.ts);
+  state.customEx = unionById(state.customEx, remote.customEx);
+  if(remote.stretch && Array.isArray(remote.stretch.log))
+    state.stretch.log = unionById(state.stretch.log, remote.stretch.log).sort((a,b) => a.ts - b.ts);
+  if(remote.cardio){
+    state.cardio.log = unionById(state.cardio.log, remote.cardio.log).sort((a,b) => a.ts - b.ts);
+    // vo2 readings carry no id; dedupe on timestamp
+    if(Array.isArray(remote.cardio.vo2Log)){
+      const ts = {}; state.cardio.vo2Log.forEach(v => { ts[v.ts] = 1; });
+      remote.cardio.vo2Log.forEach(v => { if(v && !ts[v.ts]){ state.cardio.vo2Log.push(v); ts[v.ts] = 1; added++; } });
+      state.cardio.vo2Log.sort((a,b) => a.ts - b.ts);
+    }
+    // a level is a single number, so take the harder-won one
+    if(remote.cardio.levels) MACHINES.forEach(m => {
+      const r = remote.cardio.levels[m.k];
+      if(typeof r === 'number' && r > (state.cardio.levels[m.k] || 0)) state.cardio.levels[m.k] = r;
+    });
+  }
+  // PRs have no id — key on exercise + timestamp
+  if(Array.isArray(remote.prs)){
+    const k = {}; state.prs.forEach(p => { k[p.exId + '|' + p.ts] = 1; });
+    remote.prs.forEach(p => { const kk = p && (p.exId + '|' + p.ts); if(kk && !k[kk]){ state.prs.push(p); k[kk] = 1; } });
+  }
+  // last write wins for the single-value settings
+  if((remote.settingsAt || 0) > (state.settingsAt || 0)){
+    ['targets','freq','daysPerWeek','unit','restDefault','sound','bodyMode'].forEach(f => {
+      if(remote[f] !== undefined) state[f] = remote[f];
+    });
+    if(remote.gyms && remote.gyms.length) state.gyms = remote.gyms;
+    if(remote.setup)  state.setup  = Object.assign({}, remote.setup,  state.setup);
+    if(remote.prefer) state.prefer = Object.assign({}, remote.prefer, state.prefer);
+    state.settingsAt = remote.settingsAt;
+  }
+  return {added};
+}
+
+let syncing = false;
+function syncStatus(msg, cls){ state._syncMsg = msg; state._syncCls = cls || 'muted'; }
+
+async function syncNow(silent){
+  const cfg = state.sync || {};
+  if(!cfg.url || syncing) return;
+  syncing = true; syncStatus('Syncing…', 'g-blue'); if(!silent) render();
+  try{
+    // 1. pull
+    const r = await fetch(cfg.url + (cfg.url.indexOf('?') === -1 ? '?' : '&') + 'action=get', {redirect:'follow'});
+    const got = await r.json();
+    if(!got.ok) throw new Error(got.error || 'the sheet refused the read');
+    let remote = null;
+    if(got.state){ try{ remote = JSON.parse(got.state); }catch(e){ throw new Error('the stored copy is corrupt'); } }
+    const m = remote ? mergeRemote(remote) : {added:0};
+
+    // 2. push the merged result back
+    state.sync.rev = got.rev || 0;
+    const payload = JSON.stringify(state, (k,v) => k.charAt(0) === '_' ? undefined : v);
+    const res = await fetch(cfg.url, {
+      method:'POST', redirect:'follow',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},   // text/plain avoids a CORS preflight
+      body: JSON.stringify({state:payload, baseRev:got.rev || 0, device:cfg.device || 'device', force:true})
+    });
+    const done = await res.json();
+    if(!done.ok) throw new Error(done.error || 'the sheet refused the write');
+    state.sync.rev = done.rev;
+    state.sync.lastAt = Date.now();
+    save();
+    syncStatus(m.added ? 'Synced · ' + m.added + ' new item' + (m.added>1?'s':'') + ' pulled in' : 'Synced · up to date', 'g-acc');
+  }catch(e){
+    syncStatus('Sync failed — ' + e.message, 'g-bad');
+  }finally{
+    syncing = false; render();
+  }
 }
 
 function sheetPaste(){
@@ -2194,6 +2302,33 @@ function viewPlan(){
   } else h += '<div class="tiny muted" style="margin-bottom:10px">The library covers ' + LIB.length + ' movements. Add anything it is missing.</div>';
   h += '<button class="btn wide" style="margin-top:8px" data-act="newex">+ New movement</button></div>';
 
+  // ---- cross-device sync ----
+  const sy = state.sync || {};
+  h += '<div class="sect">Sync across devices</div><div class="card">';
+  if(!sy.url){
+    h += '<div class="tiny muted" style="margin-bottom:11px">Your phone and laptop keep separate copies — that is how browsers work. '
+       + 'Connect a Google Sheet and both write to the same place. Takes about two minutes, once.</div>'
+       + '<span class="lbl">Apps Script /exec URL</span>'
+       + '<input id="syncUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" spellcheck="false">'
+       + '<button class="btn blue wide" style="margin-top:10px" data-act="syncon">Connect</button>'
+       + '<button class="btn wide ghost" style="margin-top:8px;color:var(--blue)" data-act="synchelp">How do I get that URL?</button>';
+  } else {
+    h += '<div class="row"><div class="fl"><div class="sm" style="font-weight:600">Connected</div>'
+       + '<div class="tiny ' + (state._syncCls || 'muted') + '" style="margin-top:3px">'
+       + esc(state._syncMsg || (sy.lastAt ? 'Last synced ' + fmtAgo(Date.now() - sy.lastAt) : 'Not synced yet'))
+       + '</div></div>'
+       + '<button class="btn sm blue" data-act="syncnow">' + (syncing ? '…' : 'Sync now') + '</button></div>';
+    h += '<div class="tiny muted" style="margin-top:10px;word-break:break-all">' + esc(sy.url.slice(0,64))
+       + (sy.url.length > 64 ? '…' : '') + '</div>';
+    h += '<div class="row" style="margin-top:11px"><div class="sm fl" style="font-weight:600">This device</div>'
+       + '<input id="syncDev" value="' + esc(sy.device || '') + '" placeholder="phone / laptop" style="width:150px;flex:none">'
+       + '</div>';
+    h += '<button class="btn wide" style="margin-top:11px;color:var(--bad)" data-act="syncoff">Disconnect</button>';
+    h += '<div class="tiny muted" style="margin-top:10px">Sessions merge from both sides, so nothing is lost if you train and '
+       + 'log on either one. Settings take whichever device changed them last.</div>';
+  }
+  h += '</div>';
+
   h += '<div class="sect">Move data between copies</div><div class="card">'
      + '<div class="tiny muted" style="margin-bottom:11px">Your log is stored per website, so a copy opened at a different address '
      + 'starts empty. Copy it there, paste it here — nothing already logged gets overwritten.</div>'
@@ -2377,6 +2512,8 @@ function render(){
     }));
     const d = $('dpwIn');
     if(d) d.addEventListener('change', () => { state.daysPerWeek = Math.min(7, Math.max(1, Math.round(+d.value || 5))); save(); render(); });
+    const dev = $('syncDev');
+    if(dev) dev.addEventListener('change', () => { state.sync.device = dev.value.trim(); save(); });
   }
 }
 
@@ -2626,6 +2763,39 @@ document.addEventListener('click', ev => {
       } else anchorSave();
       break;
     }
+    case 'syncon': {
+      const u = ($('syncUrl').value || '').trim();
+      if(!/^https:\/\/script\.google\.com\/macros\/s\/[^\/]+\/exec/.test(u)){
+        alert('That does not look like an Apps Script web-app URL. It should start with https://script.google.com/macros/s/ and end in /exec');
+        break;
+      }
+      state.sync = {url:u, device:(/iphone|ipad|android|mobile/i.test(navigator.userAgent) ? 'phone' : 'laptop'), rev:0, lastAt:0};
+      save(); render(); syncNow();
+      break;
+    }
+    case 'syncnow': syncNow(); break;
+    case 'syncoff': {
+      if(!confirm('Disconnect sync? Your log stays on this device; the sheet keeps its copy.')) break;
+      state.sync = {url:'', device:'', rev:0, lastAt:0};
+      state._syncMsg = ''; save(); render(); break;
+    }
+    case 'synchelp': {
+      openSheet('<div class="sheeth"><div class="row"><h2>Connecting the sheet</h2>'
+        + '<button class="btn sm sp" data-act="closesheet">Done</button></div></div>'
+        + '<div class="card"><div class="sm" style="line-height:1.6">'
+        + '<b>1.</b> Open <b>sheets.new</b> and make a blank spreadsheet.<br><br>'
+        + '<b>2.</b> Extensions → Apps Script. Delete what is there.<br><br>'
+        + '<b>3.</b> Paste in the <b>sync.gs</b> script and save.<br><br>'
+        + '<b>4.</b> Deploy → New deployment → <b>Web app</b>. Execute as <b>Me</b>, access <b>Anyone</b>. '
+        + 'Approve the prompt and copy the <b>/exec</b> URL.<br><br>'
+        + '<b>5.</b> Paste it here and hit Connect. Then do the same on your other device with the same URL.'
+        + '</div></div>'
+        + '<div class="card" style="border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.06)">'
+        + '<div class="tiny g-warn">Anyone with that URL can read and write your training log. It is not credentials, '
+        + 'but do not post it anywhere public.</div></div>');
+      break;
+    }
+
     case 'copy': {
       const json = JSON.stringify(state);
       const done = () => toast('Backup copied — paste it into the other one');
@@ -2673,6 +2843,15 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && tab
 setInterval(() => { if(tab === 'today' && !document.hidden) render(); }, 5*60*1000);
 
 checkStorage(); load(); render();
+lastFp = settingsFingerprint();          // baseline, so a plain load never looks like a settings change
+
+/* pull on open and when the app comes back to the foreground — that is when the
+   other device's session is most likely to be sitting there unmerged */
+if(state.sync && state.sync.url) syncNow(true);
+document.addEventListener('visibilitychange', () => {
+  if(!document.hidden && state.sync && state.sync.url &&
+     Date.now() - (state.sync.lastAt || 0) > 60000) syncNow(true);
+});
 if(storageOK === false) console.warn('SetClock: storage unavailable —', saveErr);
 </script>
 </body>

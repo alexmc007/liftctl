@@ -33,12 +33,15 @@ soreness log, PR tracking, JSON export/import.
 | Path | What |
 | --- | --- |
 | `index.html` | SetClock — the live app |
-| `liftctl.html` | LiftCtl v13, the previous app at this URL, kept for reference |
 | `camryn.html` | Camryn's app, untouched |
-| `legacy/` | Pre-v11 LiftCtl |
-| `sync.gs` | Apps Script sync used by LiftCtl, unused by SetClock |
 
-The LiftCtl state before this replacement is tagged **`liftctl-v13-final`**.
+LiftCtl previously lived at this URL and was removed on 2026-08-11. Every file of
+it — `liftctl.html`, `legacy/`, `sync.gs` — is recoverable from the
+**`liftctl-v13-final`** tag:
+
+```
+git checkout liftctl-v13-final
+```
 
 ## Backups
 

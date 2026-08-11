@@ -179,7 +179,14 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(11,13,16,.
    Scales with how much volume that session actually put on it. */
 const MUSCLES = [
   {k:'chest',    n:'Chest',      rec:56, cap:10},
-  {k:'back',     n:'Back',       rec:60, cap:12},
+  /* "Back" was one bucket, which made the Back filter return 51 movements —
+     rows, deadlifts, kettlebell swings, good mornings — and buried pull-ups at
+     position 31. Split by how the muscle is actually loaded: vertical pulling,
+     horizontal pulling, shrugging, and hinging. */
+  {k:'lats',     n:'Lats',       rec:56, cap:10},
+  {k:'upperback',n:'Upper Back', rec:52, cap:10},
+  {k:'traps',    n:'Traps',      rec:40, cap:6},
+  {k:'lowerback',n:'Lower Back', rec:64, cap:6},
   {k:'delts',    n:'Shoulders',  rec:40, cap:9},
   {k:'reardelts',n:'Rear Delts', rec:32, cap:8},
   {k:'biceps',   n:'Biceps',     rec:40, cap:8},
@@ -201,8 +208,8 @@ const MK = MUSCLES.map(m => m.k);
    exactly one group, so nothing can fall off the bottom of a list again. */
 const GROUPS = [
   {k:'chesttri', n:'Chest & Triceps', m:['chest','triceps']},
-  {k:'backbi',   n:'Back & Biceps',   m:['back','biceps','reardelts','forearms']},
-  {k:'sholabs',  n:'Shoulders & Abs', m:['delts','core']},
+  {k:'backbi',   n:'Back & Biceps',   m:['lats','upperback','lowerback','biceps','reardelts','forearms']},
+  {k:'sholabs',  n:'Shoulders & Abs', m:['delts','traps','core']},
   {k:'legs',     n:'Legs',            m:['quads','hams','glutes','calves']}
 ];
 const GOF = {}; GROUPS.forEach(g => g.m.forEach(k => GOF[k] = g));
@@ -229,21 +236,21 @@ const LIB_RAW = [
   ['Push-Up','chest',['triceps','core'],'bodyweight'],
   ['Weighted Dip','chest',['triceps','delts'],'bodyweight'],
   // back
-  ['Deadlift','back',['glutes','hams','forearms'],'barbell'],
-  ['Barbell Row','back',['biceps','reardelts','forearms'],'barbell'],
-  ['Pendlay Row','back',['biceps','reardelts'],'barbell'],
-  ['Rack Pull','back',['glutes','forearms'],'barbell'],
-  ['Meadows Row','back',['biceps','reardelts'],'barbell'],
-  ['T-Bar Row','back',['biceps','reardelts'],'machine'],
-  ['Chest-Supported Row','back',['biceps','reardelts'],'machine'],
-  ['Machine Row','back',['biceps'],'machine'],
-  ['Seated Cable Row','back',['biceps','forearms'],'cable'],
-  ['Lat Pulldown','back',['biceps'],'cable'],
-  ['Neutral-Grip Pulldown','back',['biceps'],'cable'],
-  ['Straight-Arm Pulldown','back',['core'],'cable'],
-  ['Pull-Up','back',['biceps','core'],'bodyweight'],
-  ['Chin-Up','back',['biceps'],'bodyweight'],
-  ['One-Arm Dumbbell Row','back',['biceps','forearms'],'dumbbell'],
+  ['Deadlift','lowerback',['glutes','hams','forearms','upperback'],'barbell'],
+  ['Barbell Row','upperback',['biceps','reardelts','forearms'],'barbell'],
+  ['Pendlay Row','upperback',['biceps','reardelts'],'barbell'],
+  ['Rack Pull','lowerback',['glutes','forearms','upperback'],'barbell'],
+  ['Meadows Row','upperback',['biceps','reardelts'],'barbell'],
+  ['T-Bar Row','upperback',['biceps','reardelts'],'machine'],
+  ['Chest-Supported Row','upperback',['biceps','reardelts'],'machine'],
+  ['Machine Row','upperback',['biceps'],'machine'],
+  ['Seated Cable Row','upperback',['biceps','forearms'],'cable'],
+  ['Lat Pulldown','lats',['biceps'],'cable'],
+  ['Neutral-Grip Pulldown','lats',['biceps'],'cable'],
+  ['Straight-Arm Pulldown','lats',['core'],'cable'],
+  ['Pull-Up','lats',['biceps','core'],'bodyweight'],
+  ['Chin-Up','lats',['biceps'],'bodyweight'],
+  ['One-Arm Dumbbell Row','upperback',['biceps','forearms'],'dumbbell'],
   // delts
   ['Overhead Press','delts',['triceps','core'],'barbell'],
   ['Push Press','delts',['triceps','quads'],'barbell'],
@@ -254,13 +261,13 @@ const LIB_RAW = [
   ['Cable Lateral Raise','delts',[],'cable'],
   ['Machine Lateral Raise','delts',[],'machine'],
   ['Front Raise','delts',[],'dumbbell'],
-  ['Upright Row','delts',['biceps','forearms'],'barbell'],
+  ['Upright Row','delts',['biceps','forearms','traps'],'barbell'],
   // rear delts
-  ['Reverse Pec Deck','reardelts',['back'],'machine'],
-  ['Face Pull','reardelts',['back'],'cable'],
-  ['Bent-Over Reverse Fly','reardelts',['back'],'dumbbell'],
-  ['Cable Rear Delt Fly','reardelts',['back'],'cable'],
-  ['Band Pull-Apart','reardelts',['back'],'band'],
+  ['Reverse Pec Deck','reardelts',['upperback'],'machine'],
+  ['Face Pull','reardelts',['upperback'],'cable'],
+  ['Bent-Over Reverse Fly','reardelts',['upperback'],'dumbbell'],
+  ['Cable Rear Delt Fly','reardelts',['upperback'],'cable'],
+  ['Band Pull-Apart','reardelts',['upperback'],'band'],
   // biceps
   ['Barbell Curl','biceps',['forearms'],'barbell'],
   ['EZ-Bar Curl','biceps',['forearms'],'barbell'],
@@ -293,9 +300,9 @@ const LIB_RAW = [
   ['Goblet Squat','quads',['glutes','core'],'dumbbell'],
   ['Step-Up','quads',['glutes'],'dumbbell'],
   // hamstrings
-  ['Romanian Deadlift','hams',['glutes','back'],'barbell'],
-  ['Stiff-Leg Deadlift','hams',['glutes','back'],'barbell'],
-  ['Good Morning','hams',['glutes','back'],'barbell'],
+  ['Romanian Deadlift','hams',['glutes','lowerback'],'barbell'],
+  ['Stiff-Leg Deadlift','hams',['glutes','lowerback'],'barbell'],
+  ['Good Morning','hams',['glutes','lowerback'],'barbell'],
   ['Dumbbell RDL','hams',['glutes'],'dumbbell'],
   ['Lying Leg Curl','hams',['calves'],'machine'],
   ['Seated Leg Curl','hams',[],'machine'],
@@ -304,11 +311,11 @@ const LIB_RAW = [
   ['Hip Thrust','glutes',['hams'],'barbell'],
   ['Machine Hip Thrust','glutes',['hams'],'machine'],
   ['Glute Bridge','glutes',['hams'],'barbell'],
-  ['Sumo Deadlift','glutes',['hams','back','quads'],'barbell'],
+  ['Sumo Deadlift','glutes',['hams','lowerback','quads'],'barbell'],
   ['Cable Kickback','glutes',[],'cable'],
   ['Hip Abduction Machine','glutes',[],'machine'],
-  ['Reverse Hyper','glutes',['hams','back'],'machine'],
-  ['Kettlebell Swing','glutes',['hams','back'],'kettlebell'],
+  ['Reverse Hyper','glutes',['hams','lowerback'],'machine'],
+  ['Kettlebell Swing','glutes',['hams','lowerback'],'kettlebell'],
   // calves
   ['Standing Calf Raise','calves',[],'machine'],
   ['Seated Calf Raise','calves',[],'machine'],
@@ -325,7 +332,7 @@ const LIB_RAW = [
   // forearms
   ['Barbell Wrist Curl','forearms',[],'barbell'],
   ['Reverse Curl','forearms',['biceps'],'barbell'],
-  ['Farmer Carry','forearms',['core','delts'],'dumbbell'],
+  ['Farmer Carry','forearms',['core','traps'],'dumbbell'],
   ['Plate Pinch','forearms',[],'bodyweight'],
 
   /* --- second batch --- */
@@ -337,14 +344,14 @@ const LIB_RAW = [
   ['Svend Press','chest',[],'dumbbell'],
   ['Incline Push-Up','chest',['triceps'],'bodyweight'],
   // back
-  ['Seal Row','back',['biceps','reardelts'],'barbell'],
-  ['Trap Bar Deadlift','back',['glutes','quads','forearms'],'barbell'],
-  ['Kroc Row','back',['biceps','forearms'],'dumbbell'],
-  ['Wide-Grip Pulldown','back',['biceps'],'cable'],
-  ['Single-Arm Lat Pulldown','back',['biceps'],'cable'],
-  ['Single-Arm Cable Row','back',['biceps'],'cable'],
-  ['Machine Pullover','back',[],'machine'],
-  ['Inverted Row','back',['biceps','core'],'bodyweight'],
+  ['Seal Row','upperback',['biceps','reardelts'],'barbell'],
+  ['Trap Bar Deadlift','lowerback',['glutes','quads','forearms','upperback'],'barbell'],
+  ['Kroc Row','upperback',['biceps','forearms'],'dumbbell'],
+  ['Wide-Grip Pulldown','lats',['biceps'],'cable'],
+  ['Single-Arm Lat Pulldown','lats',['biceps'],'cable'],
+  ['Single-Arm Cable Row','upperback',['biceps'],'cable'],
+  ['Machine Pullover','lats',[],'machine'],
+  ['Inverted Row','upperback',['biceps','core'],'bodyweight'],
   // delts
   ['Smith Shoulder Press','delts',['triceps'],'smith'],
   ['Behind-the-Neck Press','delts',['triceps'],'barbell'],
@@ -354,9 +361,9 @@ const LIB_RAW = [
   ['Lu Raise','delts',['reardelts'],'dumbbell'],
   ['Kettlebell Clean & Press','delts',['triceps','core'],'kettlebell'],
   // rear delts
-  ['Rear Delt Row','reardelts',['back'],'dumbbell'],
-  ['Machine Rear Delt Row','reardelts',['back'],'machine'],
-  ['Prone Incline Reverse Fly','reardelts',['back'],'dumbbell'],
+  ['Rear Delt Row','reardelts',['upperback'],'dumbbell'],
+  ['Machine Rear Delt Row','reardelts',['upperback'],'machine'],
+  ['Prone Incline Reverse Fly','reardelts',['upperback'],'dumbbell'],
   // biceps
   ['Spider Curl','biceps',[],'dumbbell'],
   ['Drag Curl','biceps',[],'barbell'],
@@ -375,7 +382,7 @@ const LIB_RAW = [
   ['Belt Squat','quads',['glutes'],'machine'],
   ['Single-Leg Press','quads',['glutes'],'machine'],
   ['Box Squat','quads',['glutes'],'barbell'],
-  ['Zercher Squat','quads',['glutes','core','back'],'barbell'],
+  ['Zercher Squat','quads',['glutes','core','lowerback'],'barbell'],
   ['Reverse Lunge','quads',['glutes','hams'],'dumbbell'],
   ['Split Squat','quads',['glutes'],'dumbbell'],
   ['Sissy Squat','quads',[],'bodyweight'],
@@ -407,7 +414,7 @@ const LIB_RAW = [
   // forearms
   ['Behind-Back Wrist Curl','forearms',[],'barbell'],
   ['Wrist Roller','forearms',[],'bodyweight'],
-  ['Dead Hang','forearms',['back'],'bodyweight'],
+  ['Dead Hang','forearms',['lats'],'bodyweight'],
   ['Suitcase Carry','forearms',['core'],'dumbbell'],
 
   /* --- third batch: the gaps left after real use --- */
@@ -420,21 +427,21 @@ const LIB_RAW = [
   ['Cable Crossover','chest',[],'cable'],
   ['Banded Push-Up','chest',['triceps'],'band'],
   // back / pull-ups in every form Alex might look for
-  ['Weighted Pull-Up','back',['biceps','core'],'bodyweight'],
-  ['Assisted Pull-Up','back',['biceps'],'machine'],
-  ['Neutral-Grip Pull-Up','back',['biceps'],'bodyweight'],
-  ['Wide-Grip Pull-Up','back',['biceps'],'bodyweight'],
-  ['Band-Assisted Pull-Up','back',['biceps'],'band'],
-  ['Smith Inverted Row','back',['biceps','core'],'smith'],
-  ['Cable Pullover','back',[],'cable'],
-  ['Landmine Row','back',['biceps','reardelts'],'barbell'],
-  ['Hyperextension','back',['glutes','hams'],'bodyweight'],
+  ['Weighted Pull-Up','lats',['biceps','core'],'bodyweight'],
+  ['Assisted Pull-Up','lats',['biceps'],'machine'],
+  ['Neutral-Grip Pull-Up','lats',['biceps'],'bodyweight'],
+  ['Wide-Grip Pull-Up','lats',['biceps'],'bodyweight'],
+  ['Band-Assisted Pull-Up','lats',['biceps'],'band'],
+  ['Smith Inverted Row','upperback',['biceps','core'],'smith'],
+  ['Cable Pullover','lats',[],'cable'],
+  ['Landmine Row','upperback',['biceps','reardelts'],'barbell'],
+  ['Hyperextension','lowerback',['glutes','hams'],'bodyweight'],
   // delts
-  ['Machine Reverse Fly','reardelts',['back'],'machine'],
+  ['Machine Reverse Fly','reardelts',['upperback'],'machine'],
   ['Cable Upright Row','delts',['biceps'],'cable'],
-  ['Dumbbell Shrug','delts',['forearms'],'dumbbell'],
-  ['Barbell Shrug','delts',['forearms'],'barbell'],
-  ['Cable Shrug','delts',['forearms'],'cable'],
+  ['Dumbbell Shrug','traps',['forearms'],'dumbbell'],
+  ['Barbell Shrug','traps',['forearms'],'barbell'],
+  ['Cable Shrug','traps',['forearms'],'cable'],
   ['Band Lateral Raise','delts',[],'band'],
   // arms
   ['Incline Cable Curl','biceps',[],'cable'],
@@ -451,7 +458,7 @@ const LIB_RAW = [
   ['Machine Squat','quads',['glutes'],'machine'],
   ['Curtsy Lunge','glutes',['quads'],'dumbbell'],
   ['Cable Hip Abduction','glutes',[],'cable'],
-  ['Banded Good Morning','hams',['glutes','back'],'band'],
+  ['Banded Good Morning','hams',['glutes','lowerback'],'band'],
   ['Kettlebell Goblet Squat','quads',['glutes','core'],'kettlebell'],
   ['Sled Push','quads',['glutes','calves'],'machine'],
   ['Jump Squat','quads',['glutes','calves'],'bodyweight'],
@@ -462,7 +469,7 @@ const LIB_RAW = [
   ['Hollow Body Hold','core',[],'bodyweight'],
   ['Bicycle Crunch','core',[],'bodyweight'],
   ['Kettlebell Windmill','core',['delts'],'kettlebell'],
-  ['Zercher Carry','core',['forearms','back'],'barbell']
+  ['Zercher Carry','core',['forearms','upperback'],'barbell'],
 ];
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
 
@@ -518,7 +525,8 @@ function matchEx(e, q){
 
 /* ---------- state ---------- */
 const KEY = 'setclock_v1';
-const DEFAULT_TARGETS = {chest:12,back:16,delts:10,reardelts:6,biceps:10,triceps:10,quads:12,hams:10,glutes:10,calves:8,core:6,forearms:4};
+const DEFAULT_TARGETS = {chest:12,lats:9,upperback:9,traps:4,lowerback:3,delts:10,reardelts:6,
+                         biceps:10,triceps:10,quads:12,hams:10,glutes:10,calves:8,core:6,forearms:4};
 const uid = () => Math.random().toString(36).slice(2,8) + Date.now().toString(36).slice(-4);
 
 let state = {
@@ -557,6 +565,32 @@ function load(){
       state = Object.assign(state, s);
       state.targets = Object.assign({...DEFAULT_TARGETS}, s.targets || {});
       if(!state.setup) state.setup = {};
+
+      /* The single 'back' muscle became lats / upper back / traps / lower back.
+         Logged sets are unaffected — they store an exercise id and credits are
+         recomputed from the library — but a saved target or soreness report
+         keyed on the retired name would silently do nothing, so split it. */
+      if(state.targets.back !== undefined){
+        const old = state.targets.back;
+        if(s.targets && s.targets.back !== undefined && old !== 16){
+          // he had tuned it; keep the total roughly and weight it toward pulling
+          state.targets.lats      = Math.max(2, Math.round(old * 0.4));
+          state.targets.upperback = Math.max(2, Math.round(old * 0.4));
+          state.targets.traps     = Math.max(1, Math.round(old * 0.13));
+          state.targets.lowerback = Math.max(1, Math.round(old * 0.1));
+        }
+        delete state.targets.back;
+      }
+      if(state.soreness && state.soreness.back){
+        const b = state.soreness.back;
+        ['lats','upperback','lowerback'].forEach(k => { if(!state.soreness[k]) state.soreness[k] = b; });
+        delete state.soreness.back;
+      }
+      if(state.prefer){
+        Object.keys(state.prefer).forEach(k => {
+          if(k.slice(-5) === '|back') delete state.prefer[k];   // ids still valid, muscle key is not
+        });
+      }
       if(!state.gyms || !state.gyms.length) state.gyms = [{id:'g_main',name:'Muscle Up',equip:EQUIP.slice()}];
 
       /* One-time fixup for anyone who loaded the app before the real gym names
@@ -925,9 +959,12 @@ const BODY = {
   ]},
   back: {cx:240, label:'Back', regs:[
     {m:'reardelts',s:[['e',220,43,10,8],  ['e',260,43,10,8]]},
-    {m:'back',     s:[['r',226,38,28,33,6]]},
+    {m:'traps',    s:[['r',231,36,18,8,3]]},
+    {m:'upperback',s:[['r',229,45,22,10,3]]},
+    {m:'lats',     s:[['r',221,45,7,22,3], ['r',252,45,7,22,3]]},
+    {m:'lowerback',s:[['r',231,56,18,14,3]]},
     {m:'triceps',  s:[['e',213,64,6.5,13],['e',267,64,6.5,13]]},
-    {m:'glutes',   s:[['r',226,74,28,20,7]]},
+    {m:'glutes',   s:[['r',226,72,28,20,7]]},
     {m:'forearms', s:[['e',207,91,5.5,15],['e',273,91,5.5,15]]},
     {m:'hams',     s:[['r',225,96,13,46,7],['r',242,96,13,46,7]]},
     {m:'calves',   s:[['r',226,148,11,34,6],['r',243,148,11,34,6]]}

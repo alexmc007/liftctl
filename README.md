@@ -1,51 +1,46 @@
-# LiftCtl
+# SetClock
 
-Lifting tracker with an adaptive VO₂ cardio trainer. One self-contained
-`index.html` — no build step, no dependencies, no service worker.
+Live: **https://alexmc007.github.io/liftctl/**
 
-Live: https://alexmc007.github.io/liftctl/
+A weekly **set bank** for lifting. Not a program — you owe a number of sets per
+muscle each week, you log them from any gym on any day, and the app tracks the
+debt against a clock.
 
-| file | what it is |
-|---|---|
-| `index.html` | the app (phone for logging, desktop for reading) |
-| `sync.gs` | Apps Script backend, so the phone and the desktop share one state |
-| `legacy/index.html` | the previous light-theme build, kept as a fallback |
-| `camryn.html` | separate build, untouched by the v11/v12 work |
+One self-contained `index.html`. No build step, no backend, no dependencies.
+Data lives in the browser's `localStorage` on this origin.
 
-## Turning sync on
+## How it works
 
-State lives in a hidden `_State` sheet in your Google Sheet; the app reads and
-writes it over HTTP.
+- **Effective sets** — a movement gives **1.0** to its primary muscle and **0.5**
+  to each secondary, so benching feeds triceps without logging a pushdown.
+- **Day allowance** — the weekly target divided by how many times a week you
+  train that muscle (Plan → Schedule, 1–3×). At 1× a muscle gets its whole week
+  in one session.
+- **Traffic lights** — green: keep going · yellow: enough of that muscle for
+  today · **red: weekly target met, done for the week**. Red means finished, not
+  bad.
+- **Groups** — Chest & Triceps, Back & Biceps, Shoulders & Abs, Legs. Tapping one
+  builds a session for whichever gym you are standing in, pre-filled with the
+  weights you used last time.
+- **Weeks run Sunday → Saturday.** The weekly tally resets. Your history and
+  personal records never do.
 
-1. Open the Sheet the old app used → **Extensions → Apps Script**.
-2. Paste `sync.gs` over `Code.gs`.
-3. **Deploy → New deployment → Web app**, *Execute as* **Me**, *Who has access*
-   **Anyone**. Copy the `/exec` URL.
-4. In LiftCtl → **Settings → Sync**, paste that URL and hit **Connect**. Do the
-   same on the other device — same URL.
+215 movements, per-gym equipment filtering, machine setup notes, rest timer,
+soreness log, PR tracking, JSON export/import.
 
-After editing `sync.gs` you must **Deploy → Manage deployments → edit → New
-version**, otherwise the URL keeps serving the old code.
+## Files
 
-The endpoint URL is stored per device, outside the exported JSON, so an export
-stays portable and never carries your endpoint with it.
+| Path | What |
+| --- | --- |
+| `index.html` | SetClock — the live app |
+| `liftctl.html` | LiftCtl v13, the previous app at this URL, kept for reference |
+| `camryn.html` | Camryn's app, untouched |
+| `legacy/` | Pre-v11 LiftCtl |
+| `sync.gs` | Apps Script sync used by LiftCtl, unused by SetClock |
 
-## How syncing behaves
+The LiftCtl state before this replacement is tagged **`liftctl-v13-final`**.
 
-- Pulls on load, when a tab comes back to the front, and when the network
-  returns; pushes about 2.5s after any change.
-- Sessions, quick logs, per-line history, PRs and cardio history are **merged**,
-  never replaced — a stale tab cannot delete what the other device logged.
-- Goals, settings and the program carry their own timestamps, so logging on the
-  phone never rolls back an edit made on the desktop.
-- Writes use the revision the client last read; if the sheet moved on in
-  between, the write is refused, merged and retried.
-- The in-progress workout (`lc_run`) is deliberately **not** synced — it stays
-  on the phone that is logging it.
+## Backups
 
-## Data
-
-Everything is in `localStorage` under `lc_state` (all history) and `lc_run`
-(the workout in progress). Settings → **Download backup file** writes a JSON
-snapshot; **Import everything** takes one back, including exports from the old
-app.
+Storage is per-browser and is not synced anywhere. Plan → Data → **Export JSON**
+writes a full backup; **Import JSON** restores one. Do it occasionally.

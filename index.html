@@ -893,6 +893,61 @@ function prCheck(exId, weight, reps){
   return hits.length ? {kind:'pr', label:hits.join(' · ')} : null;
 }
 
+/* ---------- moving data between installs ----------
+   Browser storage is per origin, so the copy at claude.ai and the copy on
+   github.io are separate stores. This MERGES rather than replaces: sets are
+   unioned by id, so importing twice is harmless and importing into an install
+   that already has logs never destroys them. Gyms, targets and settings are
+   deliberately left alone — only the training record travels. */
+function importPayload(text){
+  const s = JSON.parse(String(text || '').trim());
+  if(!s || !Array.isArray(s.sets)) throw new Error('that is not a SetClock backup');
+
+  const have = {}; state.sets.forEach(x => { have[x.id] = 1; });
+  let added = 0;
+  s.sets.forEach(x => {
+    if(!x || !x.id || have[x.id]) return;
+    if(typeof x.ts !== 'number' || !x.exId) return;
+    state.sets.push(x); have[x.id] = 1; added++;
+  });
+  state.sets.sort((a,b) => a.ts - b.ts);
+
+  if(Array.isArray(s.prs)){
+    state.prs = state.prs || [];
+    const seen = {}; state.prs.forEach(p => { seen[p.exId + '|' + p.ts] = 1; });
+    s.prs.forEach(p => { const k = p && (p.exId + '|' + p.ts); if(k && !seen[k]){ state.prs.push(p); seen[k] = 1; } });
+  }
+  if(Array.isArray(s.customEx)){
+    state.customEx = state.customEx || [];
+    const known = {}; state.customEx.forEach(e => { known[e.id] = 1; });
+    s.customEx.forEach(e => { if(e && e.id && !known[e.id]){ state.customEx.push(e); known[e.id] = 1; } });
+  }
+  // existing setup notes win — this install's numbers are the ones just used
+  if(s.setup) state.setup = Object.assign({}, s.setup, state.setup || {});
+  return {added, seen:s.sets.length};
+}
+
+function sheetPaste(){
+  openSheet('<div class="sheeth"><div class="row"><div class="fl"><h2>Paste a backup</h2>'
+    + '<div class="tiny muted" style="margin-top:3px">Merges into what is already here</div></div>'
+    + '<button class="btn sm" data-act="closesheet">Cancel</button></div></div>'
+    + '<textarea id="pasteBox" rows="7" placeholder="Paste the copied backup text here"'
+    + ' style="background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;'
+    + 'width:100%;outline:none;font-family:ui-monospace,monospace;font-size:12px;resize:vertical"></textarea>'
+    + '<button class="btn pri wide" style="margin-top:12px" data-act="dopaste">Add these workouts</button>'
+    + '<div class="tiny muted" style="margin-top:10px">Sets already here are kept. Anything logged twice is only counted once, '
+    + 'so running this more than once is safe.</div>');
+}
+function sheetCopyFallback(json){
+  openSheet('<div class="sheeth"><div class="row"><div class="fl"><h2>Copy this</h2>'
+    + '<div class="tiny muted" style="margin-top:3px">Select all, copy, then paste it into the other one</div></div>'
+    + '<button class="btn sm" data-act="closesheet">Done</button></div></div>'
+    + '<textarea id="copyBox" rows="8" readonly style="background:var(--card2);border:1px solid var(--line);'
+    + 'border-radius:10px;padding:10px 12px;width:100%;outline:none;font-family:ui-monospace,monospace;font-size:11px">'
+    + esc(json) + '</textarea>');
+  const b = $('copyBox'); if(b){ b.focus(); b.select(); }
+}
+
 /* ---------- ui plumbing ---------- */
 let tab = 'today', logEx = null, exFilter = '', exMuscleFilter = '';
 let sessionCtx = null;   // group key, when the log sheet was opened from a session
@@ -1513,9 +1568,16 @@ function viewPlan(){
   } else h += '<div class="tiny muted" style="margin-bottom:10px">The library covers ' + LIB.length + ' movements. Add anything it is missing.</div>';
   h += '<button class="btn wide" style="margin-top:8px" data-act="newex">+ New movement</button></div>';
 
+  h += '<div class="sect">Move data between copies</div><div class="card">'
+     + '<div class="tiny muted" style="margin-bottom:11px">Your log is stored per website, so a copy opened at a different address '
+     + 'starts empty. Copy it there, paste it here — nothing already logged gets overwritten.</div>'
+     + '<div class="grid2">'
+     + '<button class="btn blue" data-act="copy">Copy backup</button>'
+     + '<button class="btn blue" data-act="paste">Paste backup</button></div></div>';
+
   h += '<div class="sect">Data</div><div class="card"><div class="grid2">'
-     + '<button class="btn" data-act="export">Export JSON</button>'
-     + '<button class="btn" data-act="import">Import JSON</button></div>'
+     + '<button class="btn" data-act="export">Export file</button>'
+     + '<button class="btn" data-act="import">Import file</button></div>'
      + '<button class="btn wide" style="margin-top:9px;color:var(--bad)" data-act="wipe">Erase everything</button>'
      + '<div class="row tiny" style="margin-top:12px;gap:7px">'
      + '<span class="dot ' + (storageOK === false ? 'b-bad' : 'b-acc') + '"></span>'
@@ -1875,20 +1937,35 @@ document.addEventListener('click', ev => {
       } else anchorSave();
       break;
     }
+    case 'copy': {
+      const json = JSON.stringify(state);
+      const done = () => toast('Backup copied — paste it into the other one');
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(json).then(done).catch(() => sheetCopyFallback(json));
+      } else sheetCopyFallback(json);
+      break;
+    }
+    case 'paste': sheetPaste(); break;
+    case 'dopaste': {
+      const ta = $('pasteBox');
+      try{
+        const r = importPayload(ta.value);
+        save(); closeSheet(); render();
+        toast(r.added ? r.added + ' sets added' : 'Nothing new to add');
+      }catch(e){ alert('Could not read that: ' + e.message); }
+      break;
+    }
     case 'import': {
       const inp = document.createElement('input');
-      inp.type = 'file'; inp.accept = 'application/json';
+      inp.type = 'file'; inp.accept = 'application/json,.json,text/plain';
       inp.onchange = () => {
         const f = inp.files[0]; if(!f) return;
         const rd = new FileReader();
         rd.onload = () => {
           try{
-            const s = JSON.parse(rd.result);
-            if(!s.sets) throw new Error('not a SetClock file');
-            if(!confirm('Replace current data with ' + s.sets.length + ' sets from this file?')) return;
-            state = Object.assign(state, s);
-            state.targets = Object.assign({...DEFAULT_TARGETS}, s.targets || {});
-            save(); render(); toast('Imported');
+            const r = importPayload(rd.result);
+            save(); render();
+            toast(r.added ? r.added + ' sets added' : 'Nothing new to add');
           }catch(e){ alert('Could not read that file: ' + e.message); }
         };
         rd.readAsText(f);

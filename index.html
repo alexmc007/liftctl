@@ -12,6 +12,7 @@
   --bg:#0b0d10; --card:#14181d; --card2:#1a1f26; --line:#242c35;
   --txt:#e9eef4; --dim:#8b98a6; --dim2:#5f6b78;
   --acc:#4ade80; --blue:#60a5fa; --warn:#fbbf24; --bad:#f87171; --purple:#a78bfa;
+  --orange:#fb923c;
   --r:14px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -66,6 +67,14 @@ header{position:sticky;top:0;z-index:20;background:rgba(11,13,16,.88);backdrop-f
 .b-acc,.bar i.b-acc{background:var(--acc)} .b-warn,.bar i.b-warn{background:var(--warn)}
 .b-bad,.bar i.b-bad{background:var(--bad)} .b-dim,.bar i.b-dim{background:var(--dim2)} .b-blue,.bar i.b-blue{background:var(--blue)}
 .empty{text-align:center;color:var(--dim2);padding:36px 16px;font-size:14px}
+
+/* body map */
+.bodywrap{display:block;width:100%}
+.bodywrap svg{width:100%;height:auto;display:block;touch-action:manipulation}
+.bodywrap .reg{cursor:pointer;transition:opacity .15s}
+.bodywrap .reg:active{opacity:.6}
+.bodywrap .frame{fill:var(--card2);stroke:var(--line);stroke-width:1}
+.bodywrap .cap{fill:var(--dim2);font-size:8px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
 
 /* today priority rows */
 .prow{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
@@ -828,7 +837,13 @@ function buildSession(gk){
 
     const cands = allEx().filter(e => e.primary === mk && g.equip.includes(e.equip) && !used[e.id]);
     if(!cands.length){ missing.push(M[mk].n); return; }
+    /* Anything Alex has pinned for this muscle at this gym goes first, always.
+       Without pinning, compound-first sorting meant Back always produced
+       deadlifts and rows and never a pull-up, no matter how much he wanted one. */
+    const pin = (state.prefer || {})[state.activeGym + '|' + mk] || [];
     cands.sort((a,b) => {
+      const ap = pin.indexOf(a.id), bp = pin.indexOf(b.id);
+      if(ap !== bp) return (ap === -1 ? 99 : ap) - (bp === -1 ? 99 : bp);
       const ak = recent[a.id] ? 0 : 1, bk = recent[b.id] ? 0 : 1;
       if(ak !== bk) return ak - bk;                       // lifts with history first
       if(a.secondary.length !== b.secondary.length) return b.secondary.length - a.secondary.length; // compounds first
@@ -891,6 +906,98 @@ function prCheck(exId, weight, reps){
   else if(weight === pr.heaviest.weight && reps > pr.heaviest.reps) hits.push('most reps at ' + weight + state.unit);
   if(e1rm(weight, reps) > e1rm(pr.best1rm.weight, pr.best1rm.reps)) hits.push('best est. 1RM ' + e1rm(weight, reps) + state.unit);
   return hits.length ? {kind:'pr', label:hits.join(' · ')} : null;
+}
+
+/* ---------- body map ----------
+   Two figures, front and back, built from plain ellipses and rounded rects
+   rather than traced anatomy: it stays legible at phone width and every region
+   is a tap target. Each region carries a muscle key, so the map is generated
+   from MUSCLES and can never drift out of sync with what is tracked. */
+const BODY = {
+  front: {cx:80, label:'Front', regs:[
+    {m:'delts',    s:[['e',60,43,10,8],   ['e',100,43,10,8]]},
+    {m:'chest',    s:[['r',66,38,13,19,4],['r',81,38,13,19,4]]},
+    {m:'biceps',   s:[['e',53,64,6.5,13], ['e',107,64,6.5,13]]},
+    {m:'core',     s:[['r',70,59,20,29,5]]},
+    {m:'forearms', s:[['e',47,91,5.5,15], ['e',113,91,5.5,15]]},
+    {m:'quads',    s:[['r',65,96,13,46,7],['r',82,96,13,46,7]]},
+    {m:'calves',   s:[['r',66,148,11,34,6],['r',83,148,11,34,6]]}
+  ]},
+  back: {cx:240, label:'Back', regs:[
+    {m:'reardelts',s:[['e',220,43,10,8],  ['e',260,43,10,8]]},
+    {m:'back',     s:[['r',226,38,28,33,6]]},
+    {m:'triceps',  s:[['e',213,64,6.5,13],['e',267,64,6.5,13]]},
+    {m:'glutes',   s:[['r',226,74,28,20,7]]},
+    {m:'forearms', s:[['e',207,91,5.5,15],['e',273,91,5.5,15]]},
+    {m:'hams',     s:[['r',225,96,13,46,7],['r',242,96,13,46,7]]},
+    {m:'calves',   s:[['r',226,148,11,34,6],['r',243,148,11,34,6]]}
+  ]}
+};
+
+/* soreness first — that is what the map is for. Fall back to the training
+   traffic light for anything not reported, so the figure is never blank. */
+function bodyFill(mk, mode){
+  if(mode === 'ready'){
+    const p = priorities().find(x => x.m.k === mk);
+    return p ? 'var(--' + light(p).c + ')' : 'var(--dim2)';
+  }
+  const so = soreness(mk);
+  if(!so) return 'var(--card2)';
+  return ['var(--acc)','var(--warn)','var(--orange)','var(--bad)'][so.lvl] || 'var(--card2)';
+}
+
+function bodySVG(mode){
+  let s = '<svg viewBox="0 0 320 205" role="img" aria-label="Body map of soreness by muscle">';
+  [BODY.front, BODY.back].forEach(fig => {
+    // head and neck are scenery, not tappable
+    s += '<circle class="frame" cx="' + fig.cx + '" cy="19" r="11"/>'
+       + '<rect class="frame" x="' + (fig.cx-5) + '" y="29" width="10" height="9" rx="3"/>';
+    fig.regs.forEach(r => {
+      const fill = bodyFill(r.m, mode);
+      s += '<g class="reg" data-act="muscle" data-m="' + r.m + '" fill="' + fill
+         + '" stroke="var(--line)" stroke-width="1">'
+         + '<title>' + M[r.m].n + '</title>';
+      r.s.forEach(sh => {
+        s += sh[0] === 'e'
+          ? '<ellipse cx="' + sh[1] + '" cy="' + sh[2] + '" rx="' + sh[3] + '" ry="' + sh[4] + '"/>'
+          : '<rect x="' + sh[1] + '" y="' + sh[2] + '" width="' + sh[3] + '" height="' + sh[4] + '" rx="' + sh[5] + '"/>';
+      });
+      s += '</g>';
+    });
+    s += '<text class="cap" x="' + fig.cx + '" y="200" text-anchor="middle">' + fig.label + '</text>';
+  });
+  return s + '</svg>';
+}
+
+function bodyCard(){
+  const mode = state.bodyMode === 'ready' ? 'ready' : 'sore';
+  const reported = MK.map(k => soreness(k)).filter(Boolean).length;
+  let h = '<div class="card"><div class="row" style="margin-bottom:4px">'
+        + '<h3 style="font-size:15px">Body map</h3>'
+        + '<div class="chips sp">'
+        + '<button class="chip ' + (mode==='sore'?'on':'') + '" data-act="bodymode" data-v="sore">Soreness</button>'
+        + '<button class="chip ' + (mode==='ready'?'on':'') + '" data-act="bodymode" data-v="ready">Ready</button>'
+        + '</div></div>';
+  h += '<div class="tiny muted" style="margin-bottom:6px">Tap any muscle to '
+     + (mode==='sore' ? 'report how sore it is' : 'see its recovery clock') + '.</div>';
+  h += '<div class="bodywrap">' + bodySVG(mode) + '</div>';
+  h += '<div class="row tiny" style="gap:11px;flex-wrap:wrap;margin-top:8px">';
+  if(mode === 'sore'){
+    h += SORE_LABEL.map((l,i) => '<span class="row" style="gap:5px"><span class="dot" style="background:'
+       + ['var(--acc)','var(--warn)','var(--orange)','var(--bad)'][i] + '"></span><span class="muted">' + l + '</span></span>').join('')
+       + '<span class="row" style="gap:5px"><span class="dot" style="background:var(--card2);border:1px solid var(--line)"></span><span class="muted">not reported</span></span>';
+  } else {
+    h += '<span class="row" style="gap:5px"><span class="dot b-acc"></span><span class="muted">keep going</span></span>'
+       + '<span class="row" style="gap:5px"><span class="dot b-warn"></span><span class="muted">enough for today</span></span>'
+       + '<span class="row" style="gap:5px"><span class="dot b-bad"></span><span class="muted">done for the week</span></span>';
+  }
+  h += '</div>';
+  if(mode === 'sore'){
+    h += '<div class="tiny muted" style="margin-top:8px">'
+       + (reported ? reported + ' reported. Reports older than 48h stop counting.'
+                   : 'Nothing reported yet — tap a muscle after a session.') + '</div>';
+  }
+  return h + '</div>';
 }
 
 /* ---------- moving data between installs ----------
@@ -1056,6 +1163,8 @@ function viewToday(){
   }
 
   // group cards — every muscle appears under exactly one, nothing gets truncated
+  h += bodyCard();
+
   h += '<div class="sect">Groups · ranked by what needs work</div>';
   h += '<div class="card" style="padding:10px 12px"><div class="row tiny" style="gap:12px;flex-wrap:wrap">'
      + '<span class="row" style="gap:6px"><span class="dot b-acc"></span><span class="muted">keep going</span></span>'
@@ -1280,14 +1389,18 @@ function sheetSession(gk){
   S.plan.forEach(x => {
     const complete = x.done >= x.sets;
     const setup = getSetup(x.ex.id);
-    h += '<button class="ex" data-act="pick" data-ex="' + x.ex.id + '" style="' + (complete ? 'opacity:.5' : '') + '">'
+    h += '<div class="row" style="gap:0;align-items:stretch">'
+       + '<button class="ex fl" data-act="pick" data-ex="' + x.ex.id + '" style="margin-bottom:7px;border-radius:12px 0 0 12px;border-right:0;' + (complete ? 'opacity:.5' : '') + '">'
        + '<div class="fl"><div class="nm">' + esc(x.ex.name) + '</div>'
        + '<div class="mt">' + M[x.mk].n + ' · '
        + (x.last ? x.last.weight + state.unit + ' × ' + x.last.reps + ' last time' : '<span class="g-blue">new — pick a weight</span>')
        + (setup ? '<br><span class="g-blue">⚙ ' + esc(setup) + '</span>' : '')
-       + '</div></div>'
+       + '</div>'
        + '<div class="pnum" style="width:auto"><b style="font-size:16px" class="' + (complete ? 'g-acc' : '') + '">'
-       + (complete ? '✓' : x.done + '/' + x.sets) + '</b><s>sets</s></div></button>';
+       + (complete ? '✓' : x.done + '/' + x.sets) + '</b><s>sets</s></div></button>'
+       + '<button class="ex" data-act="swap" data-m="' + x.mk + '" data-g="' + gk + '" data-ex="' + x.ex.id + '"'
+       + ' style="margin-bottom:7px;width:46px;flex:none;border-radius:0 12px 12px 0;justify-content:center;color:var(--blue);font-size:17px"'
+       + ' aria-label="Swap this movement">⇄</button></div>';
   });
 
   if(S.missing.length){
@@ -1301,6 +1414,36 @@ function sheetSession(gk){
   h += '<div class="tiny muted" style="margin-top:12px;padding:0 2px">Set counts come from what each muscle still owes, '
      + 'spread over the times this group will still be trained this week — so the session shrinks as the week fills up. '
      + 'Tap any movement to log it.</div>';
+  openSheet(h);
+}
+
+/* swap a movement inside a session, and remember the choice */
+function sheetSwap(mk, gk, currentId){
+  const g = activeGym();
+  const cands = allEx().filter(e => e.primary === mk && g.equip.includes(e.equip));
+  const pin = (state.prefer || {})[state.activeGym + '|' + mk] || [];
+  let h = '<div class="sheeth">'
+        + '<button class="btn sm ghost" style="padding:4px 0;color:var(--blue);margin-bottom:4px" data-act="session" data-g="' + gk + '">‹ back to session</button>'
+        + '<div class="row"><div class="fl"><h2 style="font-size:18px">' + M[mk].n + ' at ' + esc(g.name) + '</h2>'
+        + '<div class="tiny muted" style="margin-top:3px">Pick what you actually want to do</div></div>'
+        + '<button class="btn sm" data-act="closesheet">Done</button></div></div>';
+  if(!cands.length) h += '<div class="empty">Nothing for ' + M[mk].n.toLowerCase() + ' at ' + esc(g.name) + '.</div>';
+  cands.forEach(e => {
+    const on = e.id === currentId, pinned = pin.indexOf(e.id) !== -1;
+    h += '<button class="ex" data-act="dopin" data-m="' + mk + '" data-g="' + gk + '" data-ex="' + e.id + '"'
+       + (on ? ' style="border-color:rgba(74,222,128,.45)"' : '') + '>'
+       + '<div class="fl"><div class="nm">' + esc(e.name) + (on ? ' <span class="g-acc">✓ in session</span>' : '')
+       + (pinned && !on ? ' <span class="g-blue tiny">pinned</span>' : '') + '</div>'
+       + '<div class="mt">' + lastLineFor(e.id) + '</div></div>'
+       + '<span class="tag">' + EQ_LABEL[e.equip] + '</span></button>';
+  });
+  h += '<div class="tiny muted" style="margin-top:10px;padding:0 2px">What you pick is remembered for '
+     + M[mk].n.toLowerCase() + ' at ' + esc(g.name) + ', so future sessions lead with it. '
+     + 'It does not carry to your other gym.</div>';
+  if(pin.length){
+    h += '<button class="btn wide" style="margin-top:10px;color:var(--dim)" data-act="unpin" data-m="' + mk + '" data-g="' + gk + '">Forget my picks for '
+       + M[mk].n.toLowerCase() + '</button>';
+  }
   openSheet(h);
 }
 
@@ -1832,6 +1975,7 @@ document.addEventListener('click', ev => {
     }
 
     case 'muscle': sheetMuscle(el.dataset.m); break;
+    case 'bodymode': state.bodyMode = el.dataset.v; save(); render(); break;
     case 'sore': {
       if(!state.soreness) state.soreness = {};
       const mk = el.dataset.m, lvl = +el.dataset.v, cur = soreness(mk);
@@ -1841,6 +1985,21 @@ document.addEventListener('click', ev => {
     }
     case 'freq': state.freq = +el.dataset.v; save(); render(); break;
     case 'session': sheetSession(el.dataset.g); break;
+    case 'swap': sheetSwap(el.dataset.m, el.dataset.g, el.dataset.ex); break;
+    case 'dopin': {
+      const mk = el.dataset.m, k = state.activeGym + '|' + mk;
+      if(!state.prefer) state.prefer = {};
+      const cur = (state.prefer[k] || []).filter(id => id !== el.dataset.ex);
+      cur.unshift(el.dataset.ex);              // most recent pick leads
+      state.prefer[k] = cur.slice(0, 4);
+      save(); sheetSession(el.dataset.g);
+      toast(esc(exById(el.dataset.ex).name) + ' pinned');
+      break;
+    }
+    case 'unpin': {
+      if(state.prefer) delete state.prefer[state.activeGym + '|' + el.dataset.m];
+      save(); sheetSession(el.dataset.g); toast('Picks forgotten'); break;
+    }
     case 'pick': {
       // a pick from the main view is a fresh start; only picks made inside a
       // session sheet should keep the back-link to that session

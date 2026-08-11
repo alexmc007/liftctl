@@ -1205,35 +1205,41 @@ function viewToday(){
   const paceTxt = paceDelta > .06 ? ['ahead of pace','g-acc'] : paceDelta < -.12 ? ['behind pace','g-bad'] : paceDelta < -.05 ? ['slightly behind','g-warn'] : ['on pace','g-acc'];
   const todaySets = setsToday();
 
+  /* Section order is deliberate and Alex's: what to train comes first, because
+     that is the question he opens the app with while standing in the gym. The
+     week bank, what he already did, and the soreness map are all review, and
+     review belongs underneath. Sections are built separately and assembled at
+     the end so the order is one list to read rather than the order of the code. */
+  let secWeek = '', secToday = '', secGroups = '', secCloser = '', secGym = '';
   let h = '';
 
   // week clock
-  h += '<div class="card">';
-  h += '<div class="row"><div><h2 style="font-size:17px">This week</h2>'
+  secWeek += '<div class="card">';
+  secWeek += '<div class="row"><div><h2 style="font-size:17px">This week</h2>'
      + '<div class="sm muted" style="margin-top:3px">' + w.daysLeft + ' day' + (w.daysLeft>1?'s':'') + ' left · '
      + w.trainedDays + ' of ' + state.daysPerWeek + ' sessions done</div></div>'
      + '<div class="pnum"><b class="mono">' + Math.round(totDone) + '<span class="muted" style="font-size:14px">/' + totTarget + '</span></b><s>sets banked</s></div></div>';
-  h += '<div class="bar" style="margin-top:12px"><i style="width:' + (pct*100).toFixed(1) + '%"></i>'
+  secWeek += '<div class="bar" style="margin-top:12px"><i style="width:' + (pct*100).toFixed(1) + '%"></i>'
      + '<div class="mark" style="left:' + (expected*100).toFixed(1) + '%"></div></div>';
-  h += '<div class="row tiny" style="margin-top:7px"><span class="' + paceTxt[1] + '" style="font-weight:700">' + paceTxt[0] + '</span>'
+  secWeek += '<div class="row tiny" style="margin-top:7px"><span class="' + paceTxt[1] + '" style="font-weight:700">' + paceTxt[0] + '</span>'
      + '<span class="sp muted">marker = where you should be</span></div>';
-  h += '</div>';
+  secWeek += '</div>';
 
   // today so far
   if(todaySets.length){
     const tv = volume(todaySets);
     const parts = MK.filter(k => tv[k] > 0).sort((a,b) => tv[b]-tv[a])
       .map(k => '<span class="chip">' + M[k].n + ' ' + (Math.round(tv[k]*10)/10) + '</span>').join('');
-    h += '<div class="card"><div class="row"><h3 style="font-size:14px">Logged today</h3>'
+    secToday += '<div class="card"><div class="row"><h3 style="font-size:14px">Logged today</h3>'
        + '<span class="sp sm muted">' + todaySets.length + ' sets · ' + esc(gymById(todaySets[todaySets.length-1].gymId).name) + '</span></div>'
        + '<div class="chips" style="margin-top:10px">' + parts + '</div></div>';
   }
 
   // group cards — every muscle appears under exactly one, nothing gets truncated
-  h += bodyCard();
+  const secBody = bodyCard();
 
-  h += '<div class="sect">Groups · ranked by what needs work</div>';
-  h += '<div class="card" style="padding:10px 12px"><div class="row tiny" style="gap:12px;flex-wrap:wrap">'
+  secGroups += '<div class="sect">Groups · ranked by what needs work</div>';
+  secGroups += '<div class="card" style="padding:10px 12px"><div class="row tiny" style="gap:12px;flex-wrap:wrap">'
      + '<span class="row" style="gap:6px"><span class="dot b-acc"></span><span class="muted">keep going</span></span>'
      + '<span class="row" style="gap:6px"><span class="dot b-warn"></span><span class="muted">enough for today</span></span>'
      + '<span class="row" style="gap:6px"><span class="dot b-bad"></span><span class="muted">done for the week</span></span>'
@@ -1246,14 +1252,14 @@ function viewToday(){
              : gr.lag.length && gr.lag[0].needPerSession > M[gr.lag[0].m.k].cap ? {c:'bad', t:'cannot finish'}
              : gr.ready < 1    ? {c:'blue', t:'ready soon'}
              : {c:'acc', t:'ready'};
-    h += '<div class="card"><button class="row" data-act="session" data-g="' + gr.g.k
+    secGroups += '<div class="card"><button class="row" data-act="session" data-g="' + gr.g.k
        + '" style="width:100%;text-align:left;background:none;padding:0">'
        + '<div class="fl"><h3 style="font-size:15px">' + gr.g.n
        + ' <span class="tiny g-' + st.c + '" style="font-weight:700">· ' + st.t + '</span></h3>'
        + '<div class="tiny" style="color:var(--blue);margin-top:3px;font-weight:600">Tap for a session at ' + esc(activeGym().name) + ' ›</div></div>'
        + '<div class="pnum"><b class="mono g-' + st.c + '">' + (Math.round(gr.counted*10)/10)
        + '<span class="muted" style="font-size:13px">/' + gr.target + '</span></b><s>group sets</s></div></button>';
-    h += '<div class="bar" style="margin:10px 0 4px"><i class="' + (gr.deficit<=0?'b-acc':pct>60?'b-warn':'b-bad') + '" style="width:' + pct + '%"></i></div>';
+    secGroups += '<div class="bar" style="margin:10px 0 4px"><i class="' + (gr.deficit<=0?'b-acc':pct>60?'b-warn':'b-bad') + '" style="width:' + pct + '%"></i></div>';
 
     gr.parts.forEach(p => {
       const L = light(p);
@@ -1262,7 +1268,7 @@ function viewToday(){
                  : p.suggest <= 0        ? p.doneToday + ' sets logged today — come back next session'
                  : p.rec.since == null   ? 'never trained'
                  : 'last hit ' + fmtAgo(p.rec.since) + ' · ' + p.hitsLeft + ' session' + (p.hitsLeft===1?'':'s') + ' left this week'
-      h += '<button class="prow" data-act="muscle" data-m="' + p.m.k + '" style="width:100%;text-align:left;background:none;padding:9px 0">'
+      secGroups += '<button class="prow" data-act="muscle" data-m="' + p.m.k + '" style="width:100%;text-align:left;background:none;padding:9px 0">'
          + '<span class="dot b-' + L.c + '"></span>'
          + '<div class="fl"><div class="nm" style="font-size:14px">' + p.m.n
          + (so && so.lvl >= 2 ? ' <span class="tiny g-warn">· ' + SORE_LABEL[so.lvl].toLowerCase() + '</span>' : '') + '</div>'
@@ -1272,42 +1278,42 @@ function viewToday(){
          + '<div class="pnum" style="width:44px"><b style="font-size:16px" class="g-' + L.c + '">'
          + (p.deficit <= 0 ? '■' : p.suggest > 0 ? p.suggest : '✓') + '</b></div></button>';
     });
-    h += '</div>';
+    secGroups += '</div>';
   });
 
   // end-of-week catch-up plan
   const cl = weekCloser();
   if((cl.cheap.length || cl.heavy.length) && w.daysLeft <= 3){
     const g2 = activeGym();
-    h += '<div class="card" style="border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.06)">'
+    secCloser += '<div class="card" style="border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.06)">'
        + '<div class="row" style="gap:8px"><span class="dot b-warn"></span><h3 style="font-size:15px" class="g-warn">Close out the week</h3>'
        + '<span class="sp tiny muted">' + w.daysLeft + ' day' + (w.daysLeft>1?'s':'') + ' left</span></div>';
     if(cl.cheap.length){
-      h += '<div class="sm" style="margin-top:10px;color:var(--dim)">A light session clears these — small muscles, recovered, cheap to repeat:</div>'
+      secCloser += '<div class="sm" style="margin-top:10px;color:var(--dim)">A light session clears these — small muscles, recovered, cheap to repeat:</div>'
          + '<div class="chips" style="margin-top:8px">'
          + cl.cheap.map(c => '<span class="chip on">' + c.p.m.n + ' ' + c.sets + '</span>').join('')
          + '</div>';
       const total = cl.cheap.reduce((t,c) => t + c.sets, 0);
-      h += '<div class="tiny muted" style="margin-top:8px">' + total + ' sets total. '
+      secCloser += '<div class="tiny muted" style="margin-top:8px">' + total + ' sets total. '
          + (total <= 20
             ? 'None of these need a full recovery window, so it fits on a rest day.'
             : 'That is too much to be a light day — take the ones you care about most and let the rest go.')
          + '</div>';
     }
     if(cl.heavy.length){
-      h += '<div class="sm" style="margin-top:12px;color:var(--dim)">These need a real session, not a light one:</div>'
+      secCloser += '<div class="sm" style="margin-top:12px;color:var(--dim)">These need a real session, not a light one:</div>'
          + '<div class="chips" style="margin-top:8px">'
          + cl.heavy.map(c => '<span class="chip">' + c.p.m.n + ' ' + c.sets
              + (c.p.rec.ready < .8 ? ' <span class="g-blue">· sore</span>' : '') + '</span>').join('')
          + '</div>';
       const impossible = cl.heavy.filter(c => c.p.needPerSession > M[c.p.m.k].cap);
       if(impossible.length){
-        h += '<div class="tiny g-bad" style="margin-top:8px">'
+        secCloser += '<div class="tiny g-bad" style="margin-top:8px">'
            + impossible.map(c => c.p.m.n).join(', ') + ' cannot be closed in the sessions left. '
            + 'Take the miss rather than cramming it — or lower the target in Plan if it misses every week.</div>';
       }
     }
-    h += '</div>';
+    secCloser += '</div>';
   }
 
   // suggested exercises at the current gym, for the group that most needs work
@@ -1325,9 +1331,9 @@ function viewToday(){
       if(cands[1]) picks.push({ex:cands[1], mk});
     });
     if(picks.length){
-      h += '<div class="sect">' + esc(lead.g.n) + ' at ' + esc(g.name) + '</div>';
+      secGym += '<div class="sect">' + esc(lead.g.n) + ' at ' + esc(g.name) + '</div>';
       picks.slice(0,6).forEach(p => {
-        h += '<button class="ex" data-act="pick" data-ex="' + p.ex.id + '">'
+        secGym += '<button class="ex" data-act="pick" data-ex="' + p.ex.id + '">'
            + '<div class="fl"><div class="nm">' + esc(p.ex.name) + '</div>'
            + '<div class="mt">' + M[p.ex.primary].n + (p.ex.secondary.length ? ' + ' + p.ex.secondary.map(m => M[m].n).join(', ') : '') + '</div></div>'
            + '<span class="tag">' + EQ_LABEL[p.ex.equip] + '</span></button>';
@@ -1335,7 +1341,10 @@ function viewToday(){
     }
   }
 
-  h += '<div style="height:8px"></div>';
+  /* what to train -> how to finish the week -> what fits this gym, then the
+     review material: the bank, today's log, and the soreness map */
+  h = secGroups + secCloser + secGym + secWeek + secToday + secBody
+    + '<div style="height:8px"></div>';
   return h;
 }
 

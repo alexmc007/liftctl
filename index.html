@@ -194,6 +194,8 @@ const MUSCLES = [
   {k:'quads',    n:'Quads',      rec:66, cap:9},
   {k:'hams',     n:'Hamstrings', rec:60, cap:8},
   {k:'glutes',   n:'Glutes',     rec:56, cap:9},
+  {k:'adductors',n:'Adductors',  rec:44, cap:6},
+  {k:'abductors',n:'Abductors',  rec:36, cap:6},
   {k:'calves',   n:'Calves',     rec:30, cap:8},
   {k:'core',     n:'Abs',        rec:30, cap:8},
   {k:'forearms', n:'Forearms',   rec:32, cap:6}
@@ -210,7 +212,7 @@ const GROUPS = [
   {k:'chesttri', n:'Chest & Triceps', m:['chest','triceps']},
   {k:'backbi',   n:'Back & Biceps',   m:['lats','upperback','lowerback','biceps','reardelts','forearms']},
   {k:'sholabs',  n:'Shoulders & Abs', m:['delts','traps','core']},
-  {k:'legs',     n:'Legs',            m:['quads','hams','glutes','calves']}
+  {k:'legs',     n:'Legs',            m:['quads','hams','glutes','adductors','abductors','calves']}
 ];
 const GOF = {}; GROUPS.forEach(g => g.m.forEach(k => GOF[k] = g));
 /* fail loudly in the console if a muscle is ever added without a group */
@@ -311,9 +313,9 @@ const LIB_RAW = [
   ['Hip Thrust','glutes',['hams'],'barbell'],
   ['Machine Hip Thrust','glutes',['hams'],'machine'],
   ['Glute Bridge','glutes',['hams'],'barbell'],
-  ['Sumo Deadlift','glutes',['hams','lowerback','quads'],'barbell'],
+  ['Sumo Deadlift','glutes',['hams','lowerback','quads','adductors'],'barbell'],
   ['Cable Kickback','glutes',[],'cable'],
-  ['Hip Abduction Machine','glutes',[],'machine'],
+  ['Hip Abduction Machine','abductors',['glutes'],'machine'],
   ['Reverse Hyper','glutes',['hams','lowerback'],'machine'],
   ['Kettlebell Swing','glutes',['hams','lowerback'],'kettlebell'],
   // calves
@@ -396,7 +398,7 @@ const LIB_RAW = [
   ['Smith Hip Thrust','glutes',['hams'],'smith'],
   ['Single-Leg Hip Thrust','glutes',['hams'],'bodyweight'],
   ['Frog Pump','glutes',[],'dumbbell'],
-  ['Banded Hip Abduction','glutes',[],'band'],
+  ['Banded Hip Abduction','abductors',['glutes'],'band'],
   // calves
   ['Smith Calf Raise','calves',[],'smith'],
   ['Donkey Calf Raise','calves',[],'machine'],
@@ -456,8 +458,8 @@ const LIB_RAW = [
   ['Smith Lunge','quads',['glutes'],'smith'],
   ['Heels-Elevated Squat','quads',['glutes'],'barbell'],
   ['Machine Squat','quads',['glutes'],'machine'],
-  ['Curtsy Lunge','glutes',['quads'],'dumbbell'],
-  ['Cable Hip Abduction','glutes',[],'cable'],
+  ['Curtsy Lunge','glutes',['quads','abductors'],'dumbbell'],
+  ['Cable Hip Abduction','abductors',['glutes'],'cable'],
   ['Banded Good Morning','hams',['glutes','lowerback'],'band'],
   ['Kettlebell Goblet Squat','quads',['glutes','core'],'kettlebell'],
   ['Sled Push','quads',['glutes','calves'],'machine'],
@@ -470,6 +472,23 @@ const LIB_RAW = [
   ['Bicycle Crunch','core',[],'bodyweight'],
   ['Kettlebell Windmill','core',['delts'],'kettlebell'],
   ['Zercher Carry','core',['forearms','upperback'],'barbell'],
+
+  /* --- adductors and abductors --- */
+  // adductors: inner thigh
+  ['Hip Adduction Machine','adductors',[],'machine'],
+  ['Cable Hip Adduction','adductors',[],'cable'],
+  ['Copenhagen Plank','adductors',['core'],'bodyweight'],
+  ['Sumo Squat','adductors',['quads','glutes'],'barbell'],
+  ['Sumo Goblet Squat','adductors',['quads','glutes'],'dumbbell'],
+  ['Wide-Stance Leg Press','adductors',['quads','glutes'],'machine'],
+  ['Cossack Squat','adductors',['quads','glutes'],'bodyweight'],
+  ['Banded Adductor Squeeze','adductors',[],'band'],
+  // abductors: outer hip and glute medius
+  ['Side-Lying Leg Raise','abductors',['glutes'],'bodyweight'],
+  ['Monster Walk','abductors',['glutes'],'band'],
+  ['Clamshell','abductors',['glutes'],'band'],
+  ['Standing Cable Abduction','abductors',['glutes'],'cable'],
+  ['Seated Band Abduction','abductors',['glutes'],'band'],
 ];
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
 
@@ -502,6 +521,9 @@ const ALIAS = {
   'dumbbell-curl':['curl','curls','bicep curl'],
   'face-pull':['facepull','face pulls'],
   'bulgarian-split-squat':['bulgarian','split squat','bss'],
+  'hip-adduction-machine':['adductor','adductors','inner thigh','adduction'],
+  'hip-abduction-machine':['abductor','abductors','outer hip','abduction','glute med'],
+  'sumo-squat':['sumo','wide stance squat'],
   'weighted-dip':['dip','dips'],
   'trap-bar-deadlift':['trap bar','hex bar'],
   'deadlift':['dl','deads','conventional deadlift']
@@ -516,7 +538,10 @@ const LIB = LIB_RAW.map(r => ({
 const normTxt = s => String(s).toLowerCase().replace(/[^a-z0-9]/g,'');
 function matchEx(e, q){
   if(!q) return true;
-  const hay = normTxt(e.name + ' ' + (e.alias || []).join(' '));
+  /* the muscle it trains is part of the haystack, so "adductor" finds Cable Hip
+     Adduction and "lats" finds every vertical pull without an alias for each */
+  const mus = M[e.primary] ? M[e.primary].n + ' ' + e.primary : '';
+  const hay = normTxt(e.name + ' ' + (e.alias || []).join(' ') + ' ' + mus);
   return q.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).every(t => {
     const singular = (t.length > 2 && t.slice(-1) === 's') ? t.slice(0, -1) : t;
     return hay.indexOf(t) !== -1 || hay.indexOf(singular) !== -1;
@@ -526,7 +551,8 @@ function matchEx(e, q){
 /* ---------- state ---------- */
 const KEY = 'setclock_v1';
 const DEFAULT_TARGETS = {chest:12,lats:9,upperback:9,traps:4,lowerback:3,delts:10,reardelts:6,
-                         biceps:10,triceps:10,quads:12,hams:10,glutes:10,calves:8,core:6,forearms:4};
+                         biceps:10,triceps:10,quads:12,hams:10,glutes:10,adductors:4,abductors:4,
+                         calves:8,core:6,forearms:4};
 const uid = () => Math.random().toString(36).slice(2,8) + Date.now().toString(36).slice(-4);
 
 let state = {
@@ -954,7 +980,11 @@ const BODY = {
     {m:'biceps',   s:[['e',53,64,6.5,13], ['e',107,64,6.5,13]]},
     {m:'core',     s:[['r',70,59,20,29,5]]},
     {m:'forearms', s:[['e',47,91,5.5,15], ['e',113,91,5.5,15]]},
-    {m:'quads',    s:[['r',65,96,13,46,7],['r',82,96,13,46,7]]},
+    /* abductors sit outside the quads, adductors in the gap between them —
+       the one place on the figure that reads as inner thigh */
+    {m:'abductors',s:[['r',59,95,4,24,2],  ['r',97,95,4,24,2]]},
+    {m:'quads',    s:[['r',64,96,13,46,7],['r',83,96,13,46,7]]},
+    {m:'adductors',s:[['r',78,100,4,30,2]]},
     {m:'calves',   s:[['r',66,148,11,34,6],['r',83,148,11,34,6]]}
   ]},
   back: {cx:240, label:'Back', regs:[

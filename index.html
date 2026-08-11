@@ -1491,6 +1491,14 @@ function viewToday(){
        + '<span class="muted" style="font-size:13px">/' + gr.target + '</span></b><s>group sets</s></div></button>';
     secGroups += '<div class="bar" style="margin:10px 0 4px"><i class="' + (gr.deficit<=0?'b-acc':pct>60?'b-warn':'b-bad') + '" style="width:' + pct + '%"></i></div>';
 
+    /* Column captions, once per card. Without them the two numbers on a row
+       read as one thing — Alex saw "0/12 … 6" on Quads and took the 6 as the
+       weekly target rather than one session's share of it. */
+    secGroups += '<div class="row tiny" style="padding:4px 0 2px;color:var(--dim2);letter-spacing:.05em">'
+       + '<span class="dot" style="background:transparent"></span><span class="fl"></span>'
+       + '<span style="width:62px;text-align:right">THIS WEEK</span>'
+       + '<span style="width:44px;text-align:right">TODAY</span></div>';
+
     gr.parts.forEach(p => {
       const L = light(p);
       const so = soreness(p.m.k);
@@ -1508,6 +1516,9 @@ function viewToday(){
          + '<div class="pnum" style="width:44px"><b style="font-size:16px" class="g-' + L.c + '">'
          + (p.deficit <= 0 ? '■' : p.suggest > 0 ? p.suggest : '✓') + '</b></div></button>';
     });
+    secGroups += '<div class="tiny muted" style="padding:9px 2px 0;border-top:1px solid var(--line);margin-top:4px">'
+       + 'Today = the weekly target split over ' + state.freq + ' session'
+       + (state.freq > 1 ? 's' : '') + ' a week. Change that in More → Plan.</div>';
     secGroups += '</div>';
   });
 

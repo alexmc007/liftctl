@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VO2">
+<meta name="theme-color" content="#101216">
+<title>VO2 Intervals</title>
+<style>body{margin:0}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: a setup screen you glance at, then a full-bleed colour screen that is the whole session. Single committed look (dark ground, saturated phase colours). */
+:root {
+  --bg: #101216;
+  --panel: #1a1d24;
+  --line: #2b303a;
+  --fg: #eef0f4;
+  --mute: #8f97a6;
+  --run: #d92b1f;
+  --adjust: #f5b700;
+  --adjust-ink: #1b1400;
+  --rec: #1f9d57;
+  --calm: #274a73;
+  --display: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; }
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; touch-action: manipulation; }
+button:focus-visible { outline: 3px solid var(--adjust); outline-offset: 2px; }
+
+#home { padding-block: 20px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+h1 { font-family: var(--display); font-weight: 800; font-size: 34px; letter-spacing: .02em; margin: 0; text-transform: uppercase; }
+.sub { color: var(--mute); margin: 2px 0 0; }
+.next { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 6px; }
+.lab { font-family: var(--display); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; font-size: 14px; color: var(--mute); }
+.big { font-family: var(--display); font-weight: 800; font-size: 64px; line-height: 1; font-variant-numeric: tabular-nums; }
+.big small { font-size: 26px; font-weight: 600; color: var(--mute); margin-left: 4px; }
+.why { color: var(--mute); font-size: 14px; }
+.start { background: var(--run); color: #fff; font-family: var(--display); font-weight: 800; font-size: 30px; letter-spacing: .08em; text-transform: uppercase; padding: 18px; border-radius: 14px; }
+.start:active { filter: brightness(.9); }
+.legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.sw { border-radius: 10px; padding: 10px 6px; text-align: center; font-family: var(--display); font-weight: 700; letter-spacing: .06em; font-size: 15px; text-transform: uppercase; }
+.sw i { display: block; font-style: normal; font-family: var(--body); font-weight: 500; font-size: 11px; letter-spacing: 0; text-transform: none; opacity: .85; margin-top: 2px; }
+.rows { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; min-width: 0; }
+.row + .row { border-top: 1px solid var(--line); }
+.row span.n { min-width: 0; }
+.step { display: flex; align-items: center; gap: 4px; }
+.step button { width: 44px; height: 44px; border-radius: 10px; background: var(--line); font-size: 22px; font-weight: 600; }
+.step button:active { background: #3a414e; }
+.step output { min-width: 78px; text-align: center; font-family: var(--display); font-weight: 700; font-size: 22px; font-variant-numeric: tabular-nums; }
+.hist { display: flex; flex-direction: column; }
+.h { display: flex; justify-content: space-between; gap: 10px; padding: 10px 14px; font-size: 14px; }
+.h + .h { border-top: 1px solid var(--line); }
+.h b { font-weight: 600; }
+.pill { font-family: var(--display); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: 13px; padding: 2px 8px; border-radius: 99px; align-self: center; white-space: nowrap; }
+.p-easy { background: var(--adjust); color: var(--adjust-ink); }
+.p-right { background: var(--rec); color: #fff; }
+.p-hard { background: var(--run); color: #fff; }
+.empty { color: var(--mute); padding: 14px; font-size: 14px; }
+
+/* session */
+#stage { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; justify-content: space-between; color: #fff; padding: calc(14px + env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); transition: background-color .25s; }
+#stage[hidden] { display: none; }
+#stage.warm, #stage.cool { background: var(--calm); }
+#stage.run { background: var(--run); }
+#stage.adjust { background: var(--adjust); color: var(--adjust-ink); }
+#stage.rec { background: var(--rec); }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-family: var(--display); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 18px; }
+.top button { padding: 10px 14px; border-radius: 10px; background: rgba(0,0,0,.22); font-family: var(--display); font-weight: 700; letter-spacing: .08em; font-size: 16px; min-height: 44px; }
+.mid { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+#plabel { font-family: var(--display); font-weight: 800; font-size: clamp(44px, 14vw, 88px); letter-spacing: .06em; line-height: 1; }
+#clock { font-family: var(--display); font-weight: 800; font-size: clamp(120px, 40vw, 250px); line-height: .9; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+#psub { font-family: var(--display); font-weight: 700; font-size: clamp(28px, 8vw, 46px); letter-spacing: .03em; line-height: 1.1; }
+#pnote { font-size: 17px; font-weight: 500; min-height: 24px; opacity: .92; }
+.bar { height: 8px; border-radius: 99px; background: rgba(0,0,0,.25); overflow: hidden; margin-bottom: 14px; }
+.bar i { display: block; height: 100%; width: 0; background: rgba(255,255,255,.9); }
+#stage.adjust .bar i { background: var(--adjust-ink); }
+.fb { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fb button { min-height: 76px; border-radius: 16px; background: rgba(0,0,0,.28); font-family: var(--display); font-weight: 800; font-size: 26px; letter-spacing: .05em; text-transform: uppercase; line-height: 1.05; }
+.fb button small { display: block; font-family: var(--body); font-weight: 500; font-size: 13px; letter-spacing: 0; text-transform: none; opacity: .85; margin-top: 3px; }
+.fb button:active { background: rgba(0,0,0,.5); }
+.fb.ask button { animation: pulse .9s ease-in-out infinite; background: rgba(255,255,255,.28); }
+.fb[hidden] { display: none; }
+@keyframes pulse { 50% { transform: scale(1.03); background: rgba(255,255,255,.45); } }
+#fl { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+#fl.go { animation: fl 1.6s linear; }
+@keyframes fl { 0%,30%,60%,90% { opacity: .95; } 15%,45%,75%,100% { opacity: 0; } }
+#ov { position: absolute; inset: 0; background: var(--adjust); color: var(--adjust-ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 24px; }
+#ov[hidden] { display: none; }
+#ov .l { font-family: var(--display); font-weight: 800; font-size: 38px; letter-spacing: .08em; }
+#ov .v { font-family: var(--display); font-weight: 800; font-size: clamp(90px, 28vw, 180px); line-height: 1; font-variant-numeric: tabular-nums; }
+#ov .s { font-family: var(--display); font-weight: 700; font-size: 28px; }
+
+/* rate */
+#rate { position: fixed; inset: 0; z-index: 30; background: var(--bg); display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: calc(20px + env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); max-width: 520px; margin: 0 auto; }
+#rate[hidden] { display: none; }
+#rate h2 { font-family: var(--display); font-weight: 800; font-size: 44px; margin: 0; text-transform: uppercase; letter-spacing: .03em; line-height: 1; }
+#rate p { color: var(--mute); margin: 0; }
+.rb { border-radius: 16px; padding: 18px; min-height: 84px; text-align: left; font-family: var(--display); font-weight: 800; font-size: 30px; text-transform: uppercase; letter-spacing: .05em; line-height: 1.05; }
+.rb small { display: block; font-family: var(--body); font-weight: 500; font-size: 14px; text-transform: none; letter-spacing: 0; opacity: .9; margin-top: 3px; }
+.rb.e { background: var(--adjust); color: var(--adjust-ink); }
+.rb.r { background: var(--rec); color: #fff; }
+.rb.h { background: var(--run); color: #fff; }
+.link { color: var(--mute); text-decoration: underline; padding: 12px; align-self: center; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.chips { display: flex; gap: 8px; }
+.chip { flex: 1; min-height: 44px; border-radius: 10px; background: var(--line); font-family: var(--display); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 16px; padding: 4px 6px; line-height: 1.05; }
+.chip small { display: block; font-family: var(--body); font-weight: 500; font-size: 11px; letter-spacing: 0; text-transform: none; color: var(--mute); }
+.chip.on { background: var(--fg); color: var(--bg); }
+.chip.on small { color: var(--bg); opacity: .7; }
+.rhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.rnum { font-family: var(--display); font-weight: 800; font-size: 56px; line-height: 1; font-variant-numeric: tabular-nums; }
+.rnum small { font-size: 20px; color: var(--mute); font-weight: 600; margin-left: 4px; }
+input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin: 0; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--bg); border-radius: 10px; padding: 10px 8px; text-align: center; min-width: 0; }
+.stat b { display: block; font-family: var(--display); font-weight: 800; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--mute); }
+.up { color: #5fd58a; } .dn { color: #ff7a6e; }
+.seg { display: flex; gap: 6px; }
+.seg button { flex: 1; min-height: 40px; border-radius: 10px; background: var(--line); font-weight: 600; font-size: 14px; }
+.seg button.on { background: var(--fg); color: var(--bg); }
+#chart svg { width: 100%; height: auto; display: block; }
+@media (prefers-reduced-motion: reduce) { #fl.go { animation: none; opacity: .6; } .fb.ask button { animation: none; } }
+</style>
+
+</head><body>
+<main id="home">
+  <header>
+    <h1>VO₂ Intervals</h1>
+    <p class="sub">Hard runs, walking recoveries, and a pace that follows how you feel. Best used with portrait lock on.</p>
+  </header>
+
+  <section class="next" aria-label="Next run">
+    <div class="lab">Next run starts at</div>
+    <div class="big"><span id="nSpeed">6.8</span><small>mph @ <span id="nInc">3</span>%</small></div>
+    <div class="why" id="nWhy"></div>
+  </section>
+
+  <section class="card" aria-label="Rounds">
+    <div class="rhead"><div class="lab">Rounds</div><div class="rnum"><span id="rN">5</span><small>hard</small></div></div>
+    <input type="range" id="rSl" min="1" max="12" step="1" aria-label="Number of hard rounds">
+    <div class="chips" id="presets"></div>
+    <div class="why" id="rWhy"></div>
+  </section>
+
+  <button class="start" id="go">Start run</button>
+
+  <section class="card" aria-label="Progress">
+    <div class="lab">Progress</div>
+    <div class="stats" id="stats"></div>
+    <div class="seg" id="seg"><button data-m="pace">Hard pace</button><button data-m="time">Hard minutes</button></div>
+    <div id="chart"></div>
+    <div class="why" id="cmp"></div>
+  </section>
+
+  <div class="legend" aria-label="Screen colours">
+    <div class="sw" style="background:var(--run);color:#fff">Red<i>run hard</i></div>
+    <div class="sw" style="background:var(--adjust);color:var(--adjust-ink)">Yellow<i>change speed</i></div>
+    <div class="sw" style="background:var(--rec);color:#fff">Green<i>walk it off</i></div>
+    <div class="sw" style="background:var(--calm);color:#fff">Blue<i>warm / cool</i></div>
+  </div>
+
+  <div>
+    <div class="lab" style="margin:0 2px 8px">Plan</div>
+    <div class="rows" id="plan"></div>
+  </div>
+
+  <div>
+    <div class="lab" style="margin:0 2px 8px">Recent runs</div>
+    <div class="rows hist" id="hist"></div>
+  </div>
+</main>
+
+<section id="stage" class="warm" hidden aria-live="off">
+  <div class="top"><span id="round">Round 1 of 5</span><span id="elapsed">0:00</span><button id="pause">Pause</button></div>
+  <div class="mid">
+    <div id="plabel">WARM UP</div>
+    <div id="clock">5:00</div>
+    <div id="psub"></div>
+    <div id="pnote"></div>
+  </div>
+  <div>
+    <div class="bar"><i id="pbar"></i></div>
+    <div class="fb" id="fb" hidden>
+      <button id="hard">Too hard<small>slow it down</small></button>
+      <button id="easy">Too easy<small>speed it up</small></button>
+    </div>
+    <div style="display:flex;justify-content:center;gap:12px"><button class="link" id="skipBtn" style="color:inherit;opacity:.9;font-weight:600">Skip this part ›</button><button class="link" id="endBtn" style="color:inherit;opacity:.8">End run</button></div>
+  </div>
+  <div id="fl"></div>
+  <div id="ov" hidden><div class="l">ADJUST NOW</div><div class="v" id="ovV"></div><div class="s" id="ovS"></div></div>
+</section>
+
+<section id="rate" hidden>
+  <h2>How was that run?</h2>
+  <p id="rateInfo"></p>
+  <button class="rb e" data-r="easy">Too easy<small>Next run starts faster</small></button>
+  <button class="rb r" data-r="right">About right<small>Small step up to keep progressing</small></button>
+  <button class="rb h" data-r="hard">Too hard<small>Next run starts slower</small></button>
+  <button class="link" id="skipRate">Don't save this run</button>
+</section>
+
+<script>
+(function () {
+  var KEY = 'vo2int_v1';
+  var D = { speed: 6.8, incline: 3, rounds: 5, run: 180, rec: 120, warm: 300, cool: 180, recSpeed: 3.5, nudge: 0.2, adj: 10, log: [] };
+  var S = JSON.parse(JSON.stringify(D));
+  try { var raw = localStorage.getItem(KEY); if (raw) S = Object.assign(S, JSON.parse(raw)); } catch (e) {}
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+  var $ = function (id) { return document.getElementById(id); };
+  function r1(x) { return Math.round(x * 10) / 10; }
+  function mmss(sec) { sec = Math.max(0, Math.ceil(sec)); return Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2); }
+
+  /* ---------- home ---------- */
+  var FIELDS = [
+    { k: 'speed', n: 'Run speed', step: 0.1, min: 3, max: 14, f: function (v) { return r1(v).toFixed(1) + ' mph'; } },
+    { k: 'incline', n: 'Incline', step: 0.5, min: 0, max: 15, f: function (v) { return v + '%'; } },
+    { k: 'run', n: 'Run length', step: 15, min: 30, max: 480, f: mmss },
+    { k: 'rec', n: 'Walk length', step: 15, min: 30, max: 360, f: mmss },
+    { k: 'recSpeed', n: 'Walk speed', step: 0.1, min: 2, max: 5, f: function (v) { return r1(v).toFixed(1) + ' mph'; } },
+    { k: 'nudge', n: 'Mid-run change', step: 0.1, min: 0.1, max: 1, f: function (v) { return '±' + r1(v).toFixed(1) + ' mph'; } },
+    { k: 'warm', n: 'Warm-up', step: 30, min: 0, max: 600, f: mmss },
+    { k: 'cool', n: 'Cool-down', step: 30, min: 0, max: 600, f: mmss }
+  ];
+  function drawHome() {
+    $('nSpeed').textContent = r1(S.speed).toFixed(1);
+    $('nInc').textContent = S.incline;
+    var total = S.warm + S.rounds * S.run + (S.rounds - 1) * (S.rec + S.adj) + S.adj + S.cool;
+    $('nWhy').textContent = S.rounds + ' × ' + mmss(S.run) + ' hard, ' + mmss(S.rec) + ' walk. About ' + Math.round(total / 60) + ' min door to door.';
+    drawRounds(); drawDash();
+    var p = $('plan'); p.innerHTML = '';
+    FIELDS.forEach(function (f) {
+      var row = document.createElement('div'); row.className = 'row';
+      row.innerHTML = '<span class="n">' + f.n + '</span><span class="step"><button aria-label="Less ' + f.n + '">−</button><output>' + f.f(S[f.k]) + '</output><button aria-label="More ' + f.n + '">+</button></span>';
+      var b = row.querySelectorAll('button');
+      b[0].onclick = function () { bump(f, -1); };
+      b[1].onclick = function () { bump(f, 1); };
+      p.appendChild(row);
+    });
+    var h = $('hist'); h.innerHTML = '';
+    if (!S.log.length) { h.innerHTML = '<div class="empty">Your finished runs show up here with how they felt.</div>'; return; }
+    S.log.slice(0, 6).forEach(function (L) {
+      var d = new Date(L.t);
+      var el = document.createElement('div'); el.className = 'h';
+      el.innerHTML = '<span><b>' + d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + '</b> · ' + L.done + '×' + mmss(L.run) + ' · ' + L.from.toFixed(1) + (L.to !== L.from ? '→' + L.to.toFixed(1) : '') + ' mph</span><span class="pill p-' + L.rating + '">' + ({ easy: 'Too easy', right: 'Right', hard: 'Too hard' })[L.rating] + '</span>';
+      h.appendChild(el);
+    });
+  }
+  var PRE = [
+    { n: 'Court', r: 8, run: 60, rec: 60, t: '8 × 1:00' },
+    { n: 'Classic', r: 5, run: 180, rec: 120, t: '5 × 3:00' },
+    { n: 'Engine', r: 4, run: 240, rec: 180, t: '4 × 4:00' }
+  ];
+  function drawRounds() {
+    $('rN').textContent = S.rounds; $('rSl').value = S.rounds;
+    var hm = S.rounds * S.run / 60;
+    var tip = S.run <= 90 ? 'Short bursts with short rest, like a fast break. Builds repeat-sprint legs for the court.' : (S.run >= 210 ? 'Long hard blocks. Builds the aerobic engine that makes VO₂ max go up.' : 'Middle ground between engine and court work.');
+    $('rWhy').textContent = (Math.round(hm * 10) / 10) + ' min of hard running. ' + tip;
+    var c = $('presets'); c.innerHTML = '';
+    PRE.forEach(function (x) {
+      var b = document.createElement('button'); b.className = 'chip' + (S.run === x.run && S.rec === x.rec ? ' on' : '');
+      b.innerHTML = x.n + '<small>' + x.t + ' / ' + mmss(x.rec) + '</small>';
+      b.onclick = function () { S.rounds = x.r; S.run = x.run; S.rec = x.rec; save(); drawHome(); };
+      c.appendChild(b);
+    });
+  }
+  function weekAgo() { return Date.now() - 7 * 864e5; }
+  function paceOf(L) { return L.avg != null ? L.avg : L.to; }
+  function drawDash() {
+    var log = S.log, wk = log.filter(function (L) { return L.t >= weekAgo(); });
+    var mins = Math.round(wk.reduce(function (a, L) { return a + L.done * L.run / 60; }, 0));
+    var d = log.length > 1 ? r1(paceOf(log[0]) - paceOf(log[1])) : null;
+    $('stats').innerHTML =
+      '<div class="stat"><b>' + log.length + '</b><span>runs logged</span></div>' +
+      '<div class="stat"><b>' + mins + '</b><span>hard min, 7 days</span></div>' +
+      '<div class="stat"><b class="' + (d > 0 ? 'up' : d < 0 ? 'dn' : '') + '">' + (d == null ? '–' : (d > 0 ? '+' : '') + d.toFixed(1)) + '</b><span>mph vs last run</span></div>';
+    var m = S.chartMode || 'pace';
+    document.querySelectorAll('#seg button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-m') === m); });
+    var data = log.slice(0, 12).reverse(), el = $('chart');
+    if (!data.length) { el.innerHTML = '<div class="empty" style="padding:24px 0;text-align:center">Finish a run and your trend appears here.</div>'; $('cmp').textContent = ''; return; }
+    var vals = data.map(function (L) { return m === 'pace' ? paceOf(L) : L.done * L.run / 60; });
+    var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+    if (m === 'pace') { lo -= 0.3; hi += 0.3; } else { lo = 0; hi = hi * 1.2 || 1; }
+    var W = 340, H = 190, L0 = 40, R0 = 14, T0 = 14, B0 = 30, pw = W - L0 - R0, ph = H - T0 - B0;
+    function X(i) { return data.length === 1 ? L0 + pw / 2 : L0 + pw * i / (data.length - 1); }
+    function Y(v) { return T0 + ph * (1 - (v - lo) / (hi - lo)); }
+    var g = '', i, tv;
+    for (i = 0; i < 3; i++) {
+      tv = lo + (hi - lo) * i / 2; var yy = Y(tv);
+      g += '<line x1="' + L0 + '" x2="' + (W - R0) + '" y1="' + yy + '" y2="' + yy + '" stroke="var(--line)"/>' +
+           '<text x="' + (L0 - 6) + '" y="' + (yy + 4) + '" text-anchor="end" font-size="11" fill="var(--mute)">' + (m === 'pace' ? tv.toFixed(1) : Math.round(tv)) + '</text>';
+    }
+    var pts = data.map(function (L, k) { return X(k) + ',' + Y(vals[k]); }).join(' ');
+    var area = L0 + ',' + (T0 + ph) + ' ' + pts + ' ' + X(data.length - 1) + ',' + (T0 + ph);
+    g += '<polygon points="' + area + '" fill="var(--run)" opacity=".14"/><polyline points="' + pts + '" fill="none" stroke="var(--run)" stroke-width="2.5" stroke-linejoin="round"/>';
+    var col = { easy: 'var(--adjust)', right: 'var(--rec)', hard: 'var(--run)' };
+    data.forEach(function (Lg, k) {
+      var last = k === data.length - 1;
+      g += '<circle cx="' + X(k) + '" cy="' + Y(vals[k]) + '" r="' + (last ? 6 : 4.5) + '" fill="' + col[Lg.rating] + '" stroke="var(--panel)" stroke-width="2"/>';
+      if (last) g += '<text x="' + Math.min(X(k), W - 24) + '" y="' + (Y(vals[k]) - 11) + '" text-anchor="middle" font-size="13" font-weight="700" fill="var(--fg)">' + (m === 'pace' ? vals[k].toFixed(1) : Math.round(vals[k]) + ' min') + '</text>';
+      if (k === 0 || last || data.length <= 6) { var dt = new Date(Lg.t); g += '<text x="' + X(k) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11" fill="var(--mute)">' + (dt.getMonth() + 1) + '/' + dt.getDate() + '</text>'; }
+    });
+    el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Trend of your last ' + data.length + ' runs">' + g + '</svg><div class="why" style="text-align:center">Dot colour is how that run felt: yellow too easy, green right, red too hard.</div>';
+    var last = log[0], t = 'Last run: ' + paceOf(last).toFixed(1) + ' mph average over ' + last.done + ' hard rounds.';
+    if (log.length > 1) { var f = log[log.length - 1], dd = r1(paceOf(last) - paceOf(f)); t += ' ' + (dd === 0 ? 'Same pace as' : (dd > 0 ? '+' : '') + dd.toFixed(1) + ' mph vs') + ' your first logged run.'; }
+    $('cmp').textContent = t;
+  }
+  function bump(f, dir) {
+    var v = Math.round((S[f.k] + dir * f.step) * 100) / 100;
+    S[f.k] = Math.min(f.max, Math.max(f.min, v));
+    save(); drawHome();
+  }
+
+  /* ---------- audio / feel ---------- */
+  var AC = null;
+  function ac() { try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) {} return AC; }
+  function beep(freq, ms, delay) {
+    var c = ac(); if (!c) return;
+    var t = c.currentTime + (delay || 0), o = c.createOscillator(), g = c.createGain();
+    o.type = 'square'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + ms / 1000 + 0.02);
+  }
+  function buzz(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
+  var wake = null;
+  function lock() { try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (w) { wake = w; }, function () {}); } catch (e) {} }
+  function unlock() { try { if (wake) wake.release(); } catch (e) {} wake = null; }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && ses && !ses.paused) lock(); });
+
+  /* ---------- session ---------- */
+  var ses = null, timer = null, ovTimer = null;
+  function build() {
+    var ph = [];
+    if (S.warm > 0) ph.push({ k: 'warm', sec: S.warm });
+    for (var i = 1; i <= S.rounds; i++) {
+      ph.push({ k: 'adjust', sec: S.adj, round: i });
+      ph.push({ k: 'run', sec: S.run, round: i });
+      if (i < S.rounds) ph.push({ k: 'rec', sec: S.rec, round: i });
+    }
+    if (S.cool > 0) ph.push({ k: 'cool', sec: S.cool });
+    return ph;
+  }
+  function startRun() {
+    ac(); lock();
+    ses = { speeds: [], phases: build(), idx: -1, cur: r1(S.speed), from: r1(S.speed), done: 0, taps: 0, paused: false, t0: Date.now(), last: 0, prompted: false, confirmEnd: false };
+    $('home').hidden = true; $('stage').hidden = false;
+    enter(0);
+    clearInterval(timer); timer = setInterval(tick, 200);
+  }
+  function enter(i) {
+    if (ses.idx >= 0 && ses.phases[ses.idx].k === 'run') { ses.done++; ses.speeds.push(ses.cur); }
+    if (i >= ses.phases.length) return finish();
+    ses.idx = i; var p = ses.phases[i];
+    ses.deadline = Date.now() + p.sec * 1000; ses.leftMs = p.sec * 1000; ses.prompted = false; ses.lastBeepSec = -1;
+    var st = $('stage'); st.className = p.k;
+    var names = { warm: 'WARM UP', adjust: 'ADJUST', run: 'RUN', rec: 'WALK', cool: 'COOL DOWN' };
+    $('plabel').textContent = names[p.k];
+    $('round').textContent = p.round ? 'Round ' + p.round + ' of ' + S.rounds : (p.k === 'cool' ? 'Done soon' : 'Get loose');
+    $('fb').hidden = p.k !== 'run'; $('fb').classList.remove('ask');
+    $('ov').hidden = true;
+    drawSub();
+    if (i > 0) {
+      var fl = $('fl'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+      if (p.k === 'run') { beep(1000, 160, 0); beep(1000, 160, .25); beep(1500, 450, .5); buzz([200, 100, 200, 100, 400]); }
+      else if (p.k === 'adjust') { beep(700, 140, 0); beep(700, 140, .22); buzz([150, 80, 150]); }
+      else { beep(520, 200, 0); beep(390, 420, .26); buzz([350]); }
+    }
+    tick();
+  }
+  function drawSub() {
+    var p = ses.phases[ses.idx], sp = ses.cur.toFixed(1), n = '';
+    var sub = '';
+    if (p.k === 'run') { sub = sp + ' mph @ ' + S.incline + '%'; n = 'Tell me if it is too easy or too hard.'; }
+    else if (p.k === 'adjust') { sub = 'Set ' + sp + ' mph @ ' + S.incline + '%'; n = 'Change the treadmill now.'; }
+    else if (p.k === 'rec') { sub = 'Walk ' + S.recSpeed.toFixed(1) + ' mph'; n = 'Drop the speed, breathe. Incline can stay.'; }
+    else if (p.k === 'warm') { sub = 'Easy jog'; n = 'Loosen up, nothing hard yet.'; }
+    else { sub = 'Walk it out'; n = 'Let your heart rate come down.'; }
+    $('psub').textContent = sub; $('pnote').textContent = n;
+  }
+  function tick() {
+    if (!ses || ses.paused) return;
+    var left = ses.deadline - Date.now(), p = ses.phases[ses.idx];
+    if (left <= 0) return enter(ses.idx + 1);
+    var s = Math.ceil(left / 1000);
+    $('clock').textContent = mmss(s);
+    $('pbar').style.width = (100 * (1 - left / (p.sec * 1000))) + '%';
+    var past = 0; for (var i = 0; i < ses.idx; i++) past += ses.phases[i].sec;
+    $('elapsed').textContent = mmss(past + p.sec - left / 1000);
+    if (s <= 3 && s !== ses.lastBeepSec) { ses.lastBeepSec = s; beep(880, 90, 0); }
+    if (p.k === 'run' && !ses.prompted && p.sec - left / 1000 >= Math.min(45, p.sec / 3)) {
+      ses.prompted = true; $('fb').classList.add('ask'); $('pnote').textContent = 'How does this pace feel?'; beep(660, 120, 0); buzz([120]);
+    }
+  }
+  function nudge(dir) {
+    var p = ses.phases[ses.idx]; if (p.k !== 'run') return;
+    ses.cur = r1(Math.max(2, ses.cur + dir * S.nudge)); ses.taps++;
+    $('fb').classList.remove('ask'); ses.prompted = true;
+    $('ovV').textContent = ses.cur.toFixed(1);
+    $('ovS').textContent = (dir > 0 ? 'Faster' : 'Slower') + ' · mph @ ' + S.incline + '%';
+    $('ov').hidden = false; beep(700, 120, 0); beep(700, 120, .2); buzz([120, 60, 120]);
+    clearTimeout(ovTimer); ovTimer = setTimeout(function () { $('ov').hidden = true; drawSub(); }, 3500);
+    $('psub').textContent = ses.cur.toFixed(1) + ' mph @ ' + S.incline + '%';
+    $('pnote').textContent = 'Pace updated. Next intervals start here.';
+  }
+  function finish() {
+    clearInterval(timer); unlock(); beep(900, 150, 0); beep(900, 150, .2); beep(1300, 500, .4);
+    $('stage').hidden = true;
+    if (ses.done === 0) { ses = null; $('home').hidden = false; drawHome(); return; }
+    $('rateInfo').textContent = ses.done + ' of ' + S.rounds + ' hard intervals. You ended at ' + ses.cur.toFixed(1) + ' mph' + (ses.taps ? ' after ' + ses.taps + ' mid-run change' + (ses.taps > 1 ? 's' : '') : '') + '.';
+    $('rate').hidden = false;
+  }
+  function rate(r) {
+    var delta = { easy: 0.4, right: 0.1, hard: -0.4 }[r];
+    var next = r1(Math.min(14, Math.max(3, ses.cur + delta)));
+    var avg = ses.speeds.length ? r1(ses.speeds.reduce(function (a, b) { return a + b; }, 0) / ses.speeds.length) : ses.cur;
+    S.log.unshift({ t: Date.now(), done: ses.done, run: S.run, rec: S.rec, inc: S.incline, from: ses.from, to: ses.cur, avg: avg, rating: r });
+    S.log = S.log.slice(0, 30);
+    S.speed = next; save();
+    ses = null; $('rate').hidden = true; $('home').hidden = false; drawHome();
+  }
+
+  $('go').onclick = startRun;
+  $('rSl').oninput = function () { S.rounds = +this.value; save(); $('rN').textContent = S.rounds; drawRounds(); var tt = S.warm + S.rounds * S.run + (S.rounds - 1) * (S.rec + S.adj) + S.adj + S.cool; $('nWhy').textContent = S.rounds + ' × ' + mmss(S.run) + ' hard, ' + mmss(S.rec) + ' walk. About ' + Math.round(tt / 60) + ' min door to door.'; };
+  document.querySelectorAll('#seg button').forEach(function (b) { b.onclick = function () { S.chartMode = b.getAttribute('data-m'); save(); drawDash(); }; });
+  $('easy').onclick = function () { nudge(1); };
+  $('hard').onclick = function () { nudge(-1); };
+  $('pause').onclick = function () {
+    if (!ses) return;
+    if (!ses.paused) { ses.paused = true; ses.leftMs = ses.deadline - Date.now(); $('pause').textContent = 'Resume'; }
+    else { ses.paused = false; ses.deadline = Date.now() + ses.leftMs; $('pause').textContent = 'Pause'; ac(); tick(); }
+  };
+  $('skipBtn').onclick = function () {
+    if (!ses) return;
+    ses.paused = false; $('pause').textContent = 'Pause';
+    enter(ses.idx + 1);
+  };
+  $('endBtn').onclick = function () {
+    if (!ses) return;
+    if (!ses.confirmEnd) { ses.confirmEnd = true; $('endBtn').textContent = 'Tap again to end'; setTimeout(function () { if (ses) { ses.confirmEnd = false; $('endBtn').textContent = 'End run'; } }, 3000); return; }
+    $('endBtn').textContent = 'End run'; $('pause').textContent = 'Pause';
+    ses.phases = ses.phases.slice(0, ses.idx + 1); ses.paused = false; ses.deadline = 0; finish();
+  };
+  document.querySelectorAll('.rb').forEach(function (b) { b.onclick = function () { rate(b.getAttribute('data-r')); }; });
+  $('skipRate').onclick = function () { ses = null; $('rate').hidden = true; $('home').hidden = false; drawHome(); };
+
+  drawHome();
+})();
+</script>
+
+</body></html>

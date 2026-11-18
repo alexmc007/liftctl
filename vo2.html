@@ -108,8 +108,8 @@ h1 { font-family: var(--display); font-weight: 800; font-size: 34px; letter-spac
 .rb.h { background: var(--run); color: #fff; }
 .link { color: var(--mute); text-decoration: underline; padding: 12px; align-self: center; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.chips { display: flex; gap: 8px; }
-.chip { flex: 1; min-height: 44px; border-radius: 10px; background: var(--line); font-family: var(--display); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 16px; padding: 4px 6px; line-height: 1.05; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { flex: 1 1 42%; min-height: 52px; text-align: left; padding-left: 12px !important; border-radius: 10px; background: var(--line); font-family: var(--display); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 16px; padding: 4px 6px; line-height: 1.05; }
 .chip small { display: block; font-family: var(--body); font-weight: 500; font-size: 11px; letter-spacing: 0; text-transform: none; color: var(--mute); }
 .chip.on { background: var(--fg); color: var(--bg); }
 .chip.on small { color: var(--bg); opacity: .7; }
@@ -126,11 +126,16 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
 .seg button { flex: 1; min-height: 40px; border-radius: 10px; background: var(--line); font-weight: 600; font-size: 14px; }
 .seg button.on { background: var(--fg); color: var(--bg); }
 #chart svg { width: 100%; height: auto; display: block; }
+#warn { background: var(--run); color: #fff; border-radius: 12px; padding: 12px 14px; font-weight: 600; }
+.data textarea { width: 100%; min-height: 70px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: 12px/1.3 ui-monospace, Menlo, monospace; }
+.btnrow { display: flex; gap: 8px; }
+.btnrow button { flex: 1; min-height: 44px; border-radius: 10px; background: var(--line); font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { #fl.go { animation: none; opacity: .6; } .fb.ask button { animation: none; } }
 </style>
 
 </head><body>
 <main id="home">
+  <div id="warn" hidden>This phone is refusing to save. Open the page in Safari, not inside another app, then use Copy backup below so you don't lose runs.</div>
   <header>
     <h1>VO₂ Intervals</h1>
     <p class="sub">Hard runs, walking recoveries, and a pace that follows how you feel. Best used with portrait lock on.</p>
@@ -143,7 +148,7 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
   </section>
 
   <section class="card" aria-label="Rounds">
-    <div class="rhead"><div class="lab">Rounds</div><div class="rnum"><span id="rN">5</span><small>hard</small></div></div>
+    <div class="rhead"><div class="lab" id="sportLab">Rounds</div><div class="rnum"><span id="rN">5</span><small>hard</small></div></div>
     <input type="range" id="rSl" min="1" max="12" step="1" aria-label="Number of hard rounds">
     <div class="chips" id="presets"></div>
     <div class="why" id="rWhy"></div>
@@ -170,6 +175,14 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
     <div class="lab" style="margin:0 2px 8px">Plan</div>
     <div class="rows" id="plan"></div>
   </div>
+
+  <section class="card data" aria-label="Your data">
+    <div class="lab">Your data</div>
+    <div class="why" id="dataInfo"></div>
+    <div class="btnrow"><button id="bkCopy">Copy backup</button><button id="bkRestore">Restore from backup</button></div>
+    <textarea id="bkBox" placeholder="Paste a backup here, then tap Restore" hidden></textarea>
+    <div class="why" id="bkMsg"></div>
+  </section>
 
   <div>
     <div class="lab" style="margin:0 2px 8px">Recent runs</div>
@@ -209,10 +222,12 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
 <script>
 (function () {
   var KEY = 'vo2int_v1';
-  var D = { speed: 6.8, incline: 3, rounds: 5, run: 180, rec: 120, warm: 300, cool: 180, recSpeed: 3.5, nudge: 0.2, adj: 10, log: [] };
+  var D = { sport: 'classic', prof: {}, speed: 6.8, incline: 3, rounds: 5, run: 180, rec: 120, warm: 300, cool: 180, recSpeed: 3.5, nudge: 0.2, adj: 10, log: [] };
   var S = JSON.parse(JSON.stringify(D));
   try { var raw = localStorage.getItem(KEY); if (raw) S = Object.assign(S, JSON.parse(raw)); } catch (e) {}
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+  var saveOK = true;
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); saveOK = true; } catch (e) { saveOK = false; } var w = document.getElementById('warn'); if (w) w.hidden = saveOK; }
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
   var $ = function (id) { return document.getElementById(id); };
   function r1(x) { return Math.round(x * 10) / 10; }
   function mmss(sec) { sec = Math.max(0, Math.ceil(sec)); return Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2); }
@@ -233,7 +248,7 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
     $('nInc').textContent = S.incline;
     var total = S.warm + S.rounds * S.run + (S.rounds - 1) * (S.rec + S.adj) + S.adj + S.cool;
     $('nWhy').textContent = S.rounds + ' × ' + mmss(S.run) + ' hard, ' + mmss(S.rec) + ' walk. About ' + Math.round(total / 60) + ' min door to door.';
-    drawRounds(); drawDash();
+    drawRounds(); drawDash(); drawData();
     var p = $('plan'); p.innerHTML = '';
     FIELDS.forEach(function (f) {
       var row = document.createElement('div'); row.className = 'row';
@@ -248,32 +263,43 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
     S.log.slice(0, 6).forEach(function (L) {
       var d = new Date(L.t);
       var el = document.createElement('div'); el.className = 'h';
-      el.innerHTML = '<span><b>' + d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + '</b> · ' + L.done + '×' + mmss(L.run) + ' · ' + L.from.toFixed(1) + (L.to !== L.from ? '→' + L.to.toFixed(1) : '') + ' mph</span><span class="pill p-' + L.rating + '">' + ({ easy: 'Too easy', right: 'Right', hard: 'Too hard' })[L.rating] + '</span>';
+      el.innerHTML = '<span><b>' + d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + '</b> · ' + preOf(L.sport || 'classic').n + ' · ' + L.done + '×' + mmss(L.run) + ' · ' + L.from.toFixed(1) + (L.to !== L.from ? '→' + L.to.toFixed(1) : '') + ' mph</span><span class="pill p-' + L.rating + '">' + ({ easy: 'Too easy', right: 'Right', hard: 'Too hard' })[L.rating] + '</span>';
       h.appendChild(el);
     });
   }
+  function drawData() {
+    $('dataInfo').textContent = S.log.length + ' run' + (S.log.length === 1 ? '' : 's') + ' saved on this phone. Copy a backup now and then, and paste it into Notes or email it to yourself.';
+  }
   var PRE = [
-    { n: 'Court', r: 8, run: 60, rec: 60, t: '8 × 1:00' },
-    { n: 'Classic', r: 5, run: 180, rec: 120, t: '5 × 3:00' },
-    { n: 'Engine', r: 4, run: 240, rec: 180, t: '4 × 4:00' }
+    { id: 'basketball', n: 'Basketball', r: 8, run: 60, rec: 60, sp: 7.5, t: '8 × 1:00', tip: 'Short bursts with short rest, like a fast break. Builds repeat-sprint legs for the court.' },
+    { id: 'soccer', n: 'Soccer', r: 6, run: 120, rec: 60, sp: 7.0, t: '6 × 2:00', tip: 'Medium hard blocks with a short recovery. Builds the base for 90 minutes of running.' },
+    { id: 'engine', n: 'VO₂ engine', r: 4, run: 240, rec: 180, sp: 6.6, t: '4 × 4:00', tip: 'Long hard blocks. The classic way to raise VO₂ max.' },
+    { id: 'classic', n: 'Classic', r: 5, run: 180, rec: 120, sp: 6.8, t: '5 × 3:00', tip: 'Middle ground between engine and court work.' }
   ];
+  function preOf(id) { return PRE.filter(function (x) { return x.id === id; })[0] || PRE[3]; }
+  function setSport(id) {
+    S.prof[S.sport] = { speed: S.speed, rounds: S.rounds, run: S.run, rec: S.rec };
+    var x = preOf(id), pr = S.prof[id] || { speed: x.sp, rounds: x.r, run: x.run, rec: x.rec };
+    S.sport = id; S.speed = pr.speed; S.rounds = pr.rounds; S.run = pr.run; S.rec = pr.rec;
+    save(); drawHome();
+  }
   function drawRounds() {
     $('rN').textContent = S.rounds; $('rSl').value = S.rounds;
     var hm = S.rounds * S.run / 60;
-    var tip = S.run <= 90 ? 'Short bursts with short rest, like a fast break. Builds repeat-sprint legs for the court.' : (S.run >= 210 ? 'Long hard blocks. Builds the aerobic engine that makes VO₂ max go up.' : 'Middle ground between engine and court work.');
-    $('rWhy').textContent = (Math.round(hm * 10) / 10) + ' min of hard running. ' + tip;
+    $('rWhy').textContent = (Math.round(hm * 10) / 10) + ' min of hard running. ' + preOf(S.sport).tip;
+    $('sportLab').textContent = 'Sport · ' + preOf(S.sport).n;
     var c = $('presets'); c.innerHTML = '';
     PRE.forEach(function (x) {
-      var b = document.createElement('button'); b.className = 'chip' + (S.run === x.run && S.rec === x.rec ? ' on' : '');
+      var b = document.createElement('button'); b.className = 'chip' + (S.sport === x.id ? ' on' : '');
       b.innerHTML = x.n + '<small>' + x.t + ' / ' + mmss(x.rec) + '</small>';
-      b.onclick = function () { S.rounds = x.r; S.run = x.run; S.rec = x.rec; save(); drawHome(); };
+      b.onclick = function () { setSport(x.id); };
       c.appendChild(b);
     });
   }
   function weekAgo() { return Date.now() - 7 * 864e5; }
   function paceOf(L) { return L.avg != null ? L.avg : L.to; }
   function drawDash() {
-    var log = S.log, wk = log.filter(function (L) { return L.t >= weekAgo(); });
+    var log = S.log.filter(function (L) { return (L.sport || 'classic') === S.sport; }), wk = log.filter(function (L) { return L.t >= weekAgo(); });
     var mins = Math.round(wk.reduce(function (a, L) { return a + L.done * L.run / 60; }, 0));
     var d = log.length > 1 ? r1(paceOf(log[0]) - paceOf(log[1])) : null;
     $('stats').innerHTML =
@@ -283,7 +309,7 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
     var m = S.chartMode || 'pace';
     document.querySelectorAll('#seg button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-m') === m); });
     var data = log.slice(0, 12).reverse(), el = $('chart');
-    if (!data.length) { el.innerHTML = '<div class="empty" style="padding:24px 0;text-align:center">Finish a run and your trend appears here.</div>'; $('cmp').textContent = ''; return; }
+    if (!data.length) { el.innerHTML = '<div class="empty" style="padding:24px 0;text-align:center">Finish a ' + preOf(S.sport).n + ' run and its trend appears here. Each sport keeps its own graph.</div>'; $('cmp').textContent = ''; return; }
     var vals = data.map(function (L) { return m === 'pace' ? paceOf(L) : L.done * L.run / 60; });
     var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
     if (m === 'pace') { lo -= 0.3; hi += 0.3; } else { lo = 0; hi = hi * 1.2 || 1; }
@@ -419,13 +445,32 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
     var delta = { easy: 0.4, right: 0.1, hard: -0.4 }[r];
     var next = r1(Math.min(14, Math.max(3, ses.cur + delta)));
     var avg = ses.speeds.length ? r1(ses.speeds.reduce(function (a, b) { return a + b; }, 0) / ses.speeds.length) : ses.cur;
-    S.log.unshift({ t: Date.now(), done: ses.done, run: S.run, rec: S.rec, inc: S.incline, from: ses.from, to: ses.cur, avg: avg, rating: r });
-    S.log = S.log.slice(0, 30);
+    S.log.unshift({ sport: S.sport, t: Date.now(), done: ses.done, run: S.run, rec: S.rec, inc: S.incline, from: ses.from, to: ses.cur, avg: avg, rating: r });
+    S.log = S.log.slice(0, 500);
     S.speed = next; save();
     ses = null; $('rate').hidden = true; $('home').hidden = false; drawHome();
   }
 
   $('go').onclick = startRun;
+  $('bkCopy').onclick = function () {
+    var txt = JSON.stringify({ app: 'vo2int', log: S.log, prof: S.prof, sport: S.sport });
+    var box = $('bkBox'); box.hidden = false; box.value = txt;
+    var done = function () { $('bkMsg').textContent = 'Backup copied. Paste it somewhere safe.'; };
+    var fail = function () { box.focus(); box.select(); $('bkMsg').textContent = 'Select the text above and copy it.'; };
+    try { navigator.clipboard.writeText(txt).then(done, fail); } catch (e) { fail(); }
+  };
+  $('bkRestore').onclick = function () {
+    var box = $('bkBox');
+    if (box.hidden || !box.value.trim() || box.value.indexOf('"app":"vo2int"') < 0) { box.hidden = false; box.value = ''; box.focus(); $('bkMsg').textContent = 'Paste your backup into the box, then tap Restore again.'; return; }
+    try {
+      var o = JSON.parse(box.value), seen = {};
+      S.log.forEach(function (L) { seen[L.t] = 1; });
+      (o.log || []).forEach(function (L) { if (!seen[L.t]) S.log.push(L); });
+      S.log.sort(function (a, b) { return b.t - a.t; });
+      Object.keys(o.prof || {}).forEach(function (k) { if (!S.prof[k]) S.prof[k] = o.prof[k]; });
+      save(); box.value = ''; box.hidden = true; $('bkMsg').textContent = 'Restored. No runs were overwritten.'; drawHome();
+    } catch (e) { $('bkMsg').textContent = 'That backup could not be read.'; }
+  };
   $('rSl').oninput = function () { S.rounds = +this.value; save(); $('rN').textContent = S.rounds; drawRounds(); var tt = S.warm + S.rounds * S.run + (S.rounds - 1) * (S.rec + S.adj) + S.adj + S.cool; $('nWhy').textContent = S.rounds + ' × ' + mmss(S.run) + ' hard, ' + mmss(S.rec) + ' walk. About ' + Math.round(tt / 60) + ' min door to door.'; };
   document.querySelectorAll('#seg button').forEach(function (b) { b.onclick = function () { S.chartMode = b.getAttribute('data-m'); save(); drawDash(); }; });
   $('easy').onclick = function () { nudge(1); };

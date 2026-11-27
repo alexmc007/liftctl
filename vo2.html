@@ -158,6 +158,18 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
 .skip { flex: 1 1 auto; min-height: 64px; border-radius: 16px; background: rgba(0,0,0,.3); font-family: var(--display); font-weight: 800; font-size: 28px; letter-spacing: .06em; text-transform: uppercase; }
 .skip:active { background: rgba(0,0,0,.55); }
 .endb { min-height: 64px; padding: 0 16px; border-radius: 16px; background: rgba(0,0,0,.14); font-weight: 600; font-size: 15px; }
+.tabs { display: flex; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 4px; }
+.tabs button { flex: 1; min-height: 46px; border-radius: 10px; font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+.tabs button.on { background: var(--fg); color: var(--bg); }
+#home[data-v="prog"] .tv { display: none !important; }
+#home:not([data-v="prog"]) .pv { display: none !important; }
+#home > .tabs { grid-column: 1 / -1; }
+.saved { font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.saved i { width: 10px; height: 10px; border-radius: 50%; background: var(--rec); flex: none; }
+.saved.bad i { background: var(--run); }
+.runrow { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.runrow b { font-weight: 600; }
+.runrow span.m { color: var(--mute); grid-column: 1; }
 @media (prefers-reduced-motion: reduce) { #fl.go { animation: none; opacity: .6; } .fb.ask button { animation: none; } }
 </style>
 
@@ -167,25 +179,26 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
   <div id="warn" hidden>This phone is refusing to save. Open the page in Safari, not inside another app, then use Copy backup below so you don't lose runs.</div>
   <header>
     <h1>VO₂ Intervals</h1>
-    <p class="sub">Hard runs, walking recoveries, and a pace that follows how you feel. <span style="opacity:.6">v8</span> Best used with portrait lock on.</p>
+    <p class="sub">Hard runs, walking recoveries, and a pace that follows how you feel. <span style="opacity:.6">v9</span></p>
   </header>
+  <nav class="tabs" id="tabs"><button data-v="train">Train</button><button data-v="prog">Progress</button></nav>
 
-  <section class="next" aria-label="Next run">
+  <section class="next tv" aria-label="Next run">
     <div class="lab">Next run starts at</div>
     <div class="big"><span id="nSpeed">6.8</span><small>mph @ <span id="nInc">3</span>%</small></div>
     <div class="why" id="nWhy"></div>
   </section>
 
-  <section class="card" aria-label="Rounds">
+  <section class="card tv" aria-label="Rounds">
     <div class="rhead"><div class="lab" id="sportLab">Rounds</div><div class="rnum"><span id="rN">5</span><small>hard</small></div></div>
     <input type="range" id="rSl" min="1" max="12" step="1" aria-label="Number of hard rounds">
     <div class="chips" id="presets"></div>
     <div class="why" id="rWhy"></div>
   </section>
 
-  <button class="start" id="go">Start run</button>
+  <button class="start tv" id="go">Start run</button>
 
-  <section class="card" aria-label="Progress">
+  <section class="card tv" aria-label="Progress">
     <div class="lab">Progress</div>
     <div class="stats" id="stats"></div>
     <div class="seg" id="seg"><button data-m="pace">Hard pace</button><button data-m="time">Hard minutes</button></div>
@@ -193,27 +206,30 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
     <div class="why" id="cmp"></div>
   </section>
 
-  <div class="legend" aria-label="Screen colours">
+  <div class="legend tv" aria-label="Screen colours">
     <div class="sw" style="background:var(--run);color:#fff">Red<i>run hard</i></div>
     <div class="sw" style="background:var(--adjust);color:var(--adjust-ink)">Yellow<i>change speed</i></div>
     <div class="sw" style="background:var(--rec);color:#fff">Green<i>walk it off</i></div>
     <div class="sw" style="background:var(--calm);color:#fff">Blue<i>warm / cool</i></div>
   </div>
 
-  <div>
+  <div class="tv">
     <div class="lab" style="margin:0 2px 8px">Plan</div>
     <div class="rows" id="plan"></div>
   </div>
 
+  <section class="card pv" id="pv" aria-label="Progress dashboard"></section>
+
   <section class="card data" aria-label="Your data">
     <div class="lab">Your data</div>
+    <div class="saved" id="savedLine"></div>
     <div class="why" id="dataInfo"></div>
     <div class="btnrow"><button id="bkCopy">Copy backup</button><button id="bkRestore">Restore from backup</button></div>
     <textarea id="bkBox" placeholder="Paste a backup here, then tap Restore" hidden></textarea>
     <div class="why" id="bkMsg"></div>
   </section>
 
-  <div>
+  <div class="tv">
     <div class="lab" style="margin:0 2px 8px">Recent runs</div>
     <div class="rows hist" id="hist"></div>
   </div>
@@ -256,7 +272,7 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
   var S = JSON.parse(JSON.stringify(D));
   try { var raw = localStorage.getItem(KEY); if (raw) S = Object.assign(S, JSON.parse(raw)); } catch (e) {}
   var saveOK = true;
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); saveOK = true; } catch (e) { saveOK = false; } var w = document.getElementById('warn'); if (w) w.hidden = saveOK; }
+  function save() { try { S.savedAt = Date.now(); var j = JSON.stringify(S); localStorage.setItem(KEY, j); saveOK = (localStorage.getItem(KEY) === j); } catch (e) { saveOK = false; } var w = document.getElementById('warn'); if (w) w.hidden = saveOK; }
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
   var $ = function (id) { return document.getElementById(id); };
   function r1(x) { return Math.round(x * 10) / 10; }
@@ -278,7 +294,9 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
     $('nInc').textContent = S.incline;
     var total = S.warm + S.rounds * S.run + (S.rounds - 1) * (S.rec + S.adj) + S.adj + S.cool;
     $('nWhy').textContent = S.rounds + ' × ' + mmss(S.run) + ' hard, ' + mmss(S.rec) + ' walk. About ' + Math.round(total / 60) + ' min door to door.';
-    drawRounds(); drawDash(); drawData();
+    drawRounds(); drawDash(); drawData(); drawProg();
+    $('home').setAttribute('data-v', S.view || 'train');
+    document.querySelectorAll('#tabs button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === (S.view || 'train')); });
     var p = $('plan'); p.innerHTML = '';
     FIELDS.forEach(function (f) {
       var row = document.createElement('div'); row.className = 'row';
@@ -297,7 +315,15 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
       h.appendChild(el);
     });
   }
+  function savedText() {
+    var el = $('savedLine'); if (!el) return;
+    el.className = 'saved' + (saveOK ? '' : ' bad');
+    if (!saveOK) { el.innerHTML = '<i></i><span>Not saving on this phone. Use Copy backup now.</span>'; return; }
+    var t = S.savedAt ? new Date(S.savedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    el.innerHTML = '<i></i><span>Saved on this phone and checked by reading it back' + (t ? '. Last saved ' + t : '') + '.</span>';
+  }
   function drawData() {
+    savedText();
     $('dataInfo').textContent = S.log.length + ' run' + (S.log.length === 1 ? '' : 's') + ' saved on this phone. Copy a backup now and then, and paste it into Notes or email it to yourself.';
   }
   var PRE = [
@@ -367,6 +393,41 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
     if (log.length > 1) { var f = log[log.length - 1], dd = r1(paceOf(last) - paceOf(f)); t += ' ' + (dd === 0 ? 'Same pace as' : (dd > 0 ? '+' : '') + dd.toFixed(1) + ' mph vs') + ' your first logged run.'; }
     $('cmp').textContent = t;
   }
+  function drawProg() {
+    var el = $('pv'); if (!el) return;
+    var f = S.pf || 'all';
+    var logs = S.log.filter(function (L) { return f === 'all' || (L.sport || 'classic') === f; }).sort(function (a, b) { return b.t - a.t; });
+    var chips = '<button class="chip' + (f === 'all' ? ' on' : '') + '" data-f="all" style="flex:1 1 30%">All<small>every sport</small></button>';
+    PRE.forEach(function (x) { chips += '<button class="chip' + (f === x.id ? ' on' : '') + '" data-f="' + x.id + '" style="flex:1 1 30%">' + x.n + '<small>' + x.t + '</small></button>'; });
+    var hardMin = logs.reduce(function (a, L) { return a + L.done * L.run / 60; }, 0);
+    var best = 0; logs.forEach(function (L) { var v = paceOf(L); if (v > best) best = v; });
+    var h = '<div class="lab">Progress dashboard</div><div class="chips">' + chips + '</div>';
+    h += '<div class="stats"><div class="stat"><b>' + logs.length + '</b><span>runs</span></div><div class="stat"><b>' + Math.round(hardMin) + '</b><span>hard minutes total</span></div><div class="stat"><b>' + (best ? best.toFixed(1) : '–') + '</b><span>best avg mph</span></div></div>';
+    if (!logs.length) { el.innerHTML = h + '<div class="empty" style="padding:18px 0;text-align:center">No runs yet. Finish one and it appears here with its pace, rounds and how it felt.</div>'; bindProg(el); return; }
+    // weekly hard minutes, last 8 weeks
+    var wk = [], i, now = Date.now(), WK = 7 * 864e5;
+    for (i = 7; i >= 0; i--) { var lo = now - (i + 1) * WK, hi = now - i * WK; wk.push(logs.filter(function (L) { return L.t > lo && L.t <= hi; }).reduce(function (a, L) { return a + L.done * L.run / 60; }, 0)); }
+    var mx = Math.max.apply(null, wk) || 1, W = 340, H = 150, g = '';
+    wk.forEach(function (v, k) { var bw = 30, x = 14 + k * 40, bh = Math.max(2, (H - 40) * v / mx), y = H - 22 - bh; g += '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + bh + '" rx="4" fill="' + (k === 7 ? 'var(--run)' : 'var(--line)') + '"/>' + (v ? '<text x="' + (x + bw / 2) + '" y="' + (y - 5) + '" text-anchor="middle" font-size="11" fill="var(--fg)">' + Math.round(v) + '</text>' : '') + '<text x="' + (x + bw / 2) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="10" fill="var(--mute)">' + (k === 7 ? 'now' : '-' + (7 - k) + 'w') + '</text>'; });
+    h += '<div class="lab" style="margin-top:6px">Hard minutes per week</div><svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto">' + g + '</svg>';
+    if (f !== 'all') {
+      var data = logs.slice(0, 12).reverse(), vals = data.map(paceOf), l2 = Math.min.apply(null, vals) - 0.3, h2 = Math.max.apply(null, vals) + 0.3, W2 = 340, H2 = 180, L0 = 36, g2 = '', k;
+      function X(k) { return data.length === 1 ? L0 + (W2 - L0 - 14) / 2 : L0 + (W2 - L0 - 14) * k / (data.length - 1); }
+      function Y(v) { return 14 + (H2 - 44) * (1 - (v - l2) / (h2 - l2)); }
+      for (k = 0; k < 3; k++) { var tv = l2 + (h2 - l2) * k / 2; g2 += '<line x1="' + L0 + '" x2="326" y1="' + Y(tv) + '" y2="' + Y(tv) + '" stroke="var(--line)"/><text x="' + (L0 - 5) + '" y="' + (Y(tv) + 4) + '" text-anchor="end" font-size="11" fill="var(--mute)">' + tv.toFixed(1) + '</text>'; }
+      g2 += '<polyline fill="none" stroke="var(--run)" stroke-width="2.5" points="' + vals.map(function (v, k) { return X(k) + ',' + Y(v); }).join(' ') + '"/>';
+      var col = { easy: 'var(--adjust)', right: 'var(--rec)', hard: 'var(--run)' };
+      data.forEach(function (L, k) { var d = new Date(L.t); g2 += '<circle cx="' + X(k) + '" cy="' + Y(vals[k]) + '" r="5" fill="' + col[L.rating] + '" stroke="var(--panel)" stroke-width="2"/>'; if (k === 0 || k === data.length - 1) g2 += '<text x="' + X(k) + '" y="' + (H2 - 8) + '" text-anchor="middle" font-size="11" fill="var(--mute)">' + (d.getMonth() + 1) + '/' + d.getDate() + '</text>'; });
+      h += '<div class="lab" style="margin-top:6px">Average pace per run (mph)</div><svg viewBox="0 0 ' + W2 + ' ' + H2 + '" style="width:100%;height:auto">' + g2 + '</svg><div class="why">Dot colour is how the run felt: yellow too easy, green right, red too hard.</div>';
+    }
+    h += '<div class="lab" style="margin-top:6px">All runs</div>';
+    logs.forEach(function (L) {
+      var d = new Date(L.t);
+      h += '<div class="runrow"><b>' + d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + preOf(L.sport || 'classic').n + '</b><span class="pill p-' + L.rating + '">' + ({ easy: 'Too easy', right: 'Right', hard: 'Too hard' })[L.rating] + '</span><span class="m">' + L.done + ' × ' + mmss(L.run) + ' · ' + L.from.toFixed(1) + (paceOf(L) !== L.from ? ' → avg ' + paceOf(L).toFixed(1) : '') + ' mph @ ' + (L.inc != null ? L.inc : 3) + '%</span></div>';
+    });
+    el.innerHTML = h; bindProg(el);
+  }
+  function bindProg(el) { el.querySelectorAll('[data-f]').forEach(function (b) { b.onclick = function () { S.pf = b.getAttribute('data-f'); save(); drawProg(); }; }); }
   function bump(f, dir) {
     var v = Math.round((S[f.k] + dir * f.step) * 100) / 100;
     S[f.k] = Math.min(f.max, Math.max(f.min, v));
@@ -482,6 +543,7 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
   }
 
   $('go').onclick = startRun;
+  document.querySelectorAll('#tabs button').forEach(function (b) { b.onclick = function () { S.view = b.getAttribute('data-v'); save(); drawHome(); window.scrollTo(0, 0); }; });
   $('bkCopy').onclick = function () {
     var txt = JSON.stringify({ app: 'vo2int', log: S.log, prof: S.prof, sport: S.sport });
     var box = $('bkBox'); box.hidden = false; box.value = txt;

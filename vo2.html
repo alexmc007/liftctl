@@ -154,6 +154,10 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
   #rate p, #rate .link { grid-column: 1 / -1; }
   .rb { min-height: 76px; font-size: 24px; }
 }
+.skiprow { display: flex; gap: 10px; margin-top: 10px; }
+.skip { flex: 1 1 auto; min-height: 64px; border-radius: 16px; background: rgba(0,0,0,.3); font-family: var(--display); font-weight: 800; font-size: 28px; letter-spacing: .06em; text-transform: uppercase; }
+.skip:active { background: rgba(0,0,0,.55); }
+.endb { min-height: 64px; padding: 0 16px; border-radius: 16px; background: rgba(0,0,0,.14); font-weight: 600; font-size: 15px; }
 @media (prefers-reduced-motion: reduce) { #fl.go { animation: none; opacity: .6; } .fb.ask button { animation: none; } }
 </style>
 
@@ -163,7 +167,7 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
   <div id="warn" hidden>This phone is refusing to save. Open the page in Safari, not inside another app, then use Copy backup below so you don't lose runs.</div>
   <header>
     <h1>VO₂ Intervals</h1>
-    <p class="sub">Hard runs, walking recoveries, and a pace that follows how you feel. <span style="opacity:.6">v7</span> Best used with portrait lock on.</p>
+    <p class="sub">Hard runs, walking recoveries, and a pace that follows how you feel. <span style="opacity:.6">v8</span> Best used with portrait lock on.</p>
   </header>
 
   <section class="next" aria-label="Next run">
@@ -229,7 +233,7 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
       <button id="hard">Too hard<small>slow it down</small></button>
       <button id="easy">Too easy<small>speed it up</small></button>
     </div>
-    <div style="display:flex;justify-content:center;gap:12px"><button class="link" id="skipBtn" style="color:inherit;opacity:.9;font-weight:600">Skip this part ›</button><button class="link" id="endBtn" style="color:inherit;opacity:.8">End run</button></div>
+    <div class="skiprow"><button class="skip" id="skipBtn">Skip this part ›</button><button class="endb" id="endBtn">End run</button></div>
   </div>
   <div id="fl"></div>
   <div id="ov" hidden><div class="l">ADJUST NOW</div><div class="v" id="ovV"></div><div class="s" id="ovS"></div></div>

@@ -131,6 +131,29 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
 .btnrow { display: flex; gap: 8px; }
 .btnrow button { flex: 1; min-height: 44px; border-radius: 10px; background: var(--line); font-weight: 600; }
 #app.rot { position: fixed; top: 0; left: 0; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; transform-origin: 0 0; background: var(--bg); }
+/* Landscape: the layout shifts to use the wide screen instead of stretching the portrait one. */
+@media (orientation: landscape) and (min-width: 640px) {
+  #home { max-width: 980px; display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 16px; padding-block: 14px 30px; }
+  #home > header, #home > .start, #home > .legend, #home > #warn { grid-column: 1 / -1; }
+  h1 { font-size: 28px; }
+  .big { font-size: 54px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  #stage { display: grid; grid-template-columns: 1.25fr 1fr; grid-template-rows: auto 1fr; column-gap: 24px; padding-top: calc(8px + env(safe-area-inset-top, 0px)); padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+  #stage .top { grid-column: 1 / -1; grid-row: 1; }
+  #stage .mid { grid-column: 1; grid-row: 2; justify-content: center; gap: 2px; }
+  #stage .bot { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; justify-content: flex-end; }
+  #plabel { font-size: clamp(30px, 13vh, 64px); }
+  #clock { font-size: clamp(90px, 42vh, 220px); }
+  #psub { font-size: clamp(22px, 8vh, 40px); }
+  #pnote { font-size: 15px; min-height: 0; }
+  .fb button { min-height: 64px; font-size: 22px; }
+  .bar { margin-bottom: 10px; }
+  #rate { max-width: 900px; display: grid; grid-template-columns: repeat(3, 1fr); align-content: center; gap: 10px; }
+  #rate h2 { font-size: 32px; grid-column: 1 / -1; }
+  #rate p, #rate .link { grid-column: 1 / -1; }
+  .rb { min-height: 76px; font-size: 24px; }
+}
 @media (prefers-reduced-motion: reduce) { #fl.go { animation: none; opacity: .6; } .fb.ask button { animation: none; } }
 </style>
 
@@ -140,7 +163,7 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
   <div id="warn" hidden>This phone is refusing to save. Open the page in Safari, not inside another app, then use Copy backup below so you don't lose runs.</div>
   <header>
     <h1>VO₂ Intervals</h1>
-    <p class="sub">Hard runs, walking recoveries, and a pace that follows how you feel. <span style="opacity:.6">v6</span></p>
+    <p class="sub">Hard runs, walking recoveries, and a pace that follows how you feel. <span style="opacity:.6">v7</span> Best used with portrait lock on.</p>
   </header>
 
   <section class="next" aria-label="Next run">
@@ -200,7 +223,7 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
     <div id="psub"></div>
     <div id="pnote"></div>
   </div>
-  <div>
+  <div class="bot">
     <div class="bar"><i id="pbar"></i></div>
     <div class="fb" id="fb" hidden>
       <button id="hard">Too hard<small>slow it down</small></button>

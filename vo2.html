@@ -140,7 +140,7 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
   <div id="warn" hidden>This phone is refusing to save. Open the page in Safari, not inside another app, then use Copy backup below so you don't lose runs.</div>
   <header>
     <h1>VO₂ Intervals</h1>
-    <p class="sub">Hard runs, walking recoveries, and a pace that follows how you feel. <span style="opacity:.6">v5</span></p>
+    <p class="sub">Hard runs, walking recoveries, and a pace that follows how you feel. <span style="opacity:.6">v6</span></p>
   </header>
 
   <section class="next" aria-label="Next run">
@@ -497,22 +497,7 @@ input[type=range] { width: 100%; height: 44px; accent-color: var(--run); margin:
   document.querySelectorAll('.rb').forEach(function (b) { b.onclick = function () { rate(b.getAttribute('data-r')); }; });
   $('skipRate').onclick = function () { ses = null; $('rate').hidden = true; $('home').hidden = false; drawHome(); };
 
-  /* Always portrait: when the phone is turned sideways, rotate the whole app back upright. */
-  function fit() {
-    var a = $('app'), w = window.innerWidth, h = window.innerHeight;
-    if (w <= h) { a.classList.remove('rot'); a.style.cssText = ''; return; }
-    var ang = (screen.orientation && screen.orientation.angle != null) ? screen.orientation.angle : (typeof window.orientation === 'number' ? window.orientation : 90);
-    ang = ((ang % 360) + 360) % 360;
-    a.classList.add('rot');
-    a.style.width = h + 'px'; a.style.height = w + 'px';
-    a.style.transform = (ang === 270) ? 'translateX(' + w + 'px) rotate(90deg)' : 'translateY(' + h + 'px) rotate(-90deg)';
-  }
-  window.addEventListener('resize', fit); window.addEventListener('orientationchange', function () { setTimeout(fit, 150); });
   try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(function () {}); } catch (e) {}
-  try { if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', function () { setTimeout(fit, 100); setTimeout(fit, 400); }); } catch (e) {}
-  try { if (window.visualViewport) window.visualViewport.addEventListener('resize', fit); } catch (e) {}
-  setInterval(fit, 500);
-  fit();
   drawHome();
 })();
 </script>
